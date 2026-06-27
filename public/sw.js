@@ -6,7 +6,7 @@
 // Las peticiones a Firebase / Google / fuentes / CDN (otro origen) pasan
 // directo a la red y NO se interceptan.
 
-const CACHE = "frodybody-v1";
+const CACHE = "frodybody-v2";
 const SHELL = [
   "./",
   "./index.html",
@@ -16,7 +16,8 @@ const SHELL = [
   "./manifest.webmanifest",
   "./icon-180.png",
   "./icon-192.png",
-  "./icon-512.png"
+  "./icon-512.png",
+  "./icon-maskable-512.png"
 ];
 
 self.addEventListener("install", (e) => {
@@ -41,8 +42,10 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // deja pasar Firebase/CDN/fuentes
 
+  // cache:"no-store" → network-first de verdad: nunca sirve JS/CSS viejos desde la
+  // HTTP cache del navegador; el fallback offline usa nuestra Cache API igual.
   e.respondWith(
-    fetch(req)
+    fetch(req, { cache: "no-store" })
       .then((res) => {
         if (res && res.ok && res.type === "basic") {
           const copy = res.clone();

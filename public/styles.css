@@ -36,10 +36,11 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1
 
 /* date nav */
 .datenav{display:flex;align-items:center;justify-content:center;gap:14px;padding:18px 0 8px}
-.datenav button{background:var(--surface);border:1px solid var(--line);color:var(--ink);width:38px;height:38px;border-radius:10px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .15s}
-.datenav button:active{border-color:var(--amber)}
-.datenav button:disabled{opacity:.35;cursor:default}
-.datenav .d{text-align:center;min-width:170px;cursor:pointer}
+.datenav button:not(.d){background:var(--surface);border:1px solid var(--line);color:var(--ink);width:38px;height:38px;border-radius:10px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .15s}
+.datenav button:not(.d):active{border-color:var(--amber)}
+.datenav button:not(.d):disabled{opacity:.35;cursor:default}
+.datenav .d{text-align:center;min-width:170px;cursor:pointer;background:none;border:0;color:inherit;font:inherit;padding:4px 8px;border-radius:10px}
+.datenav .d:active{background:var(--surface)}
 .datenav .d .dow{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
 .datenav .d .full{font-size:17px;font-weight:700;letter-spacing:-.01em}
 .datenav .d .today-pill{font-family:var(--mono);font-size:9px;color:var(--green);letter-spacing:.08em;min-height:12px}

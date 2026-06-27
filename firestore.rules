@@ -12,17 +12,26 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
-    // Validación ligera de un documento de día.
+    // Validación de un documento de día. El cliente (normalize()) siempre escribe
+    // estas claves con estos tipos, así que exigirlos endurece sin romper.
     function validDay(d) {
       return d.keys().hasOnly([
         'weight','waist','injected','gi','protein','water','sleep',
         'sunAM','bike','strength','cleanFood','noLiquidSugar','stressOK',
         'supps','notes','updatedAt'
       ])
-      && (d.gi is number ? (d.gi >= 0 && d.gi <= 10) : true)
-      && (d.protein is number ? d.protein >= 0 : true)
-      && (d.water is number ? d.water >= 0 : true)
-      && (d.notes is string ? d.notes.size() <= 4000 : true);
+      && d.gi is number && d.gi >= 0 && d.gi <= 10
+      && d.protein is number && d.protein >= 0
+      && d.water is number && d.water >= 0
+      && d.notes is string && d.notes.size() <= 4000
+      && d.supps is map
+      && d.injected is bool && d.sunAM is bool && d.bike is bool
+      && d.strength is bool && d.cleanFood is bool
+      && d.noLiquidSugar is bool && d.stressOK is bool
+      // peso/cintura/sueño: número o "" (vacío)
+      && (d.weight is number || d.weight is string)
+      && (d.waist is number || d.waist is string)
+      && (d.sleep is number || d.sleep is string);
     }
 
     match /users/{uid} {
@@ -30,7 +39,8 @@ service cloud.firestore {
 
       match /days/{date} {
         allow read: if isOwner(uid);
-        allow write: if isOwner(uid) && validDay(request.resource.data);
+        allow create, update: if isOwner(uid) && validDay(request.resource.data);
+        allow delete: if isOwner(uid);
       }
 
       match /meta/{docId} {

@@ -76,18 +76,36 @@ function blank() {
 
 // Convierte cualquier objeto crudo (localStorage o Firestore) en un registro
 // completo y saneado, ignorando campos extra (p. ej. updatedAt).
+// number-o-vacío: devuelve "" o un número finito (nunca NaN)
+function cleanNum(v) {
+  if (v === "" || v == null) return "";
+  const n = Number(v);
+  return isFinite(n) ? n : "";
+}
+
 function normalize(o) {
   const b = blank();
   if (!o || typeof o !== "object") return b;
   for (const k in b) {
     if (k === "supps") {
       for (const s in b.supps) {
-        if (o.supps && s in o.supps) b.supps[s] = !!o.supps[s];
+        if (o.supps && typeof o.supps === "object" && s in o.supps) b.supps[s] = !!o.supps[s];
       }
     } else if (k in o && o[k] != null) {
       b[k] = o[k];
     }
   }
+  // saneo de tipos/rangos: cumple firestore.rules y evita que un import/migración
+  // con un dato sucio (gi fuera de 0-10, notes gigante, NaN) rechace la escritura.
+  TOGGLES.forEach((f) => { b[f] = !!b[f]; });
+  b.gi = Math.min(10, Math.max(0, Math.round(Number(b.gi) || 0)));
+  b.protein = Math.max(0, Math.round(Number(b.protein) || 0));
+  b.water = Math.max(0, Math.round(Number(b.water) || 0));
+  b.weight = cleanNum(b.weight);
+  b.waist = cleanNum(b.waist);
+  b.sleep = cleanNum(b.sleep);
+  if (typeof b.notes !== "string") b.notes = b.notes == null ? "" : String(b.notes);
+  if (b.notes.length > 4000) b.notes = b.notes.slice(0, 4000);
   return b;
 }
 
@@ -108,7 +126,7 @@ function scoreOf(r) {
     (Number(r.water) || 0) >= 8,
     (parseFloat(r.sleep) || 0) >= 7,
     r.sunAM, r.bike, r.strength, r.cleanFood, r.noLiquidSugar, r.stressOK,
-    (r.supps.creatina && r.supps.mag && (r.supps.omega1 || r.supps.omega2))
+    (!!r.supps && r.supps.creatina && r.supps.mag && (r.supps.omega1 || r.supps.omega2))
   ];
   const done = checks.filter(Boolean).length;
   return { done, total: checks.length };
@@ -203,6 +221,11 @@ async function initAuth() {
   try {
     const { authMod, auth } = await loadFirebase();
     await authMod.setPersistence(auth, authMod.browserLocalPersistence).catch(() => {});
+    // completa el login si venimos de un signInWithRedirect (y surfacea sus errores)
+    authMod.getRedirectResult(auth).catch((e) => {
+      console.error("redirect result:", e);
+      toast("No se pudo completar el login", "err");
+    });
     authMod.onAuthStateChanged(auth, (user) => {
       if (user) enterCloudMode(user);
       else enterLocalMode();
@@ -249,12 +272,17 @@ async function doSignOut() {
 // =============================================================================
 // switch de modos
 // =============================================================================
+let cloudGen = 0; // invalida suscripciones de enterCloudMode que quedaron en vuelo
 function detachCloud() {
   if (cloud.unsubDays) { cloud.unsubDays(); cloud.unsubDays = null; }
   if (cloud.unsubProfile) { cloud.unsubProfile(); cloud.unsubProfile = null; }
 }
 
 function enterLocalMode() {
+  // vacía cualquier escritura pendiente con el modo aún vigente antes de cambiar
+  flushPendingSave();
+  flushPendingProfile();
+  cloudGen++;
   detachCloud();
   state.mode = "local";
   state.user = null;
@@ -267,6 +295,10 @@ function enterLocalMode() {
 }
 
 async function enterCloudMode(user) {
+  flushPendingSave();
+  flushPendingProfile();
+  const gen = ++cloudGen;
+  detachCloud(); // síncrono: no dejes suscripciones de una invocación anterior vivas
   state.mode = "cloud";
   state.user = user;
   state.migrationChecked = false;
@@ -274,6 +306,7 @@ async function enterCloudMode(user) {
   setSync(state.online ? "synced" : "offline");
   try {
     const { fsMod, db } = await loadFirebase();
+    if (gen !== cloudGen) return; // otra transición de auth ganó mientras cargábamos
     const daysCol = fsMod.collection(db, "users", user.uid, "days");
     const profileRef = fsMod.doc(db, "users", user.uid, "meta", "profile");
 
@@ -301,9 +334,11 @@ async function enterCloudMode(user) {
 }
 
 function onCloudData(meta) {
-  // refresca el día en cursor solo si no estás editándolo (evita pisar lo que tipeas)
+  // refresca el día en cursor solo si no estás editándolo NI hay una escritura
+  // pendiente (un toggle/stepper/chip recién tocado aún sin flush) — así un eco
+  // de snapshot no descarta lo que acabas de marcar.
   const remote = currentRec();
-  const editing = isEditingDayField();
+  const editing = isEditingDayField() || saveTimer !== null;
   if (!editing && !recsEqual(remote, state.rec)) {
     state.rec = remote;
     renderRec();
@@ -333,22 +368,38 @@ function currentRec() {
 
 let saveTimer = null;
 let pendingDate = null;
+let pendingRec = null;
 function scheduleSave() {
+  // captura una FOTO del día/registro actual: si navegas o cierras antes del
+  // debounce, se escribe el día correcto, no el que esté en cursor al disparar.
   pendingDate = ymd(cursor);
+  pendingRec = normalize(state.rec);
   setSync("saving");
   clearTimeout(saveTimer);
   saveTimer = setTimeout(flushSave, 600);
 }
+// fuerza la escritura pendiente ya (al cambiar de día, cerrar pestaña, etc.)
+function flushPendingSave() {
+  if (saveTimer !== null) { clearTimeout(saveTimer); saveTimer = null; flushSave(); }
+}
 async function flushSave() {
-  const date = pendingDate || ymd(cursor);
-  const rec = state.rec;
+  if (!pendingDate || !pendingRec) return;
+  const date = pendingDate;
+  const rec = pendingRec;
+  // captura modo/usuario AHORA (síncrono): si el modo cambia durante el await,
+  // la escritura igual va al destino correcto y no hace null-deref de state.user.
+  const mode = state.mode;
+  const user = state.user;
+  saveTimer = null;
+  pendingDate = null;
+  pendingRec = null;
   // refleja en el cache local en memoria para que stats/gráfico se actualicen ya
   state.records[date] = normalize(rec);
   renderGlobal();
-  if (state.mode === "cloud" && state.user) {
+  if (mode === "cloud" && user) {
     try {
       const { fsMod, db } = await loadFirebase();
-      const ref = fsMod.doc(db, "users", state.user.uid, "days", date);
+      const ref = fsMod.doc(db, "users", user.uid, "days", date);
       await fsMod.setDoc(ref, { ...rec, updatedAt: fsMod.serverTimestamp() });
       flashSaved();
       setSync(state.online ? "synced" : "offline");
@@ -365,20 +416,32 @@ async function flushSave() {
 }
 
 let profileTimer = null;
+let pendingProfile = null;
 function scheduleProfileSave() {
+  pendingProfile = { ...state.profile };
   clearTimeout(profileTimer);
-  profileTimer = setTimeout(async () => {
-    if (state.mode === "cloud" && state.user) {
-      try {
-        const { fsMod, db } = await loadFirebase();
-        await fsMod.setDoc(fsMod.doc(db, "users", state.user.uid, "meta", "profile"), state.profile);
-        flashSaved();
-      } catch (e) { console.error("save profile:", e); }
-    } else {
-      localSaveProfile(state.profile);
+  profileTimer = setTimeout(flushProfile, 500);
+}
+function flushPendingProfile() {
+  if (profileTimer !== null) { clearTimeout(profileTimer); profileTimer = null; flushProfile(); }
+}
+async function flushProfile() {
+  if (!pendingProfile) return;
+  const p = pendingProfile;
+  const mode = state.mode;
+  const user = state.user;
+  profileTimer = null;
+  pendingProfile = null;
+  if (mode === "cloud" && user) {
+    try {
+      const { fsMod, db } = await loadFirebase();
+      await fsMod.setDoc(fsMod.doc(db, "users", user.uid, "meta", "profile"), p);
       flashSaved();
-    }
-  }, 500);
+    } catch (e) { console.error("save profile:", e); }
+  } else {
+    localSaveProfile(p);
+    flashSaved();
+  }
 }
 
 // =============================================================================
@@ -465,6 +528,7 @@ function renderRec() {
   $("waterVal").textContent = r.water;
   $("gi").value = r.gi;
   $("giVal").textContent = r.gi;
+  $("gi").setAttribute("aria-valuetext", r.gi + " de 10");
   $("notes").value = r.notes;
   TOGGLES.forEach((k) => {
     const el = document.querySelector('[data-toggle="' + k + '"]');
@@ -621,7 +685,17 @@ function renderAuthUI() {
     avatar.hidden = false;
     const photo = state.user.photoURL;
     const initial = (state.user.displayName || state.user.email || "?").trim().charAt(0).toUpperCase();
-    avatar.innerHTML = photo ? '<img alt="" referrerpolicy="no-referrer" src="' + photo + '">' : initial;
+    // construir el <img> con createElement/.src (nunca innerHTML con datos de identidad)
+    avatar.textContent = "";
+    if (photo) {
+      const img = document.createElement("img");
+      img.alt = "";
+      img.referrerPolicy = "no-referrer";
+      img.src = photo;
+      avatar.appendChild(img);
+    } else {
+      avatar.textContent = initial;
+    }
   } else {
     signBtn.hidden = false;
     avatar.hidden = true;
@@ -672,7 +746,9 @@ function renderBanner() {
     actions.appendChild(b); actions.appendChild(g);
     return;
   }
-  txt.innerHTML = "Sincronizado en la nube como <b>" + (state.user.displayName || state.user.email) + "</b>. Tus registros aparecen en cualquier dispositivo donde entres. Funciona offline y sincroniza al volver la red.";
+  // nombre por textContent: displayName/email los controla el usuario en su cuenta
+  txt.innerHTML = "Sincronizado en la nube como <b></b>. Tus registros aparecen en cualquier dispositivo donde entres. Funciona offline y sincroniza al volver la red.";
+  txt.querySelector("b").textContent = state.user.displayName || state.user.email || "tu cuenta";
 }
 
 // =============================================================================
@@ -692,6 +768,7 @@ function toast(msg, kind) {
 // navegación de días
 // =============================================================================
 function switchDay() {
+  flushPendingSave();      // persiste el día que dejas antes de cambiar de rec
   state.rec = currentRec();
   renderDate();
   renderRec();
@@ -788,9 +865,8 @@ async function importJson(file) {
 function bind() {
   $("prevDay").onclick = () => { cursor.setDate(cursor.getDate() - 1); switchDay(); };
   $("nextDay").onclick = () => { if (ymd(cursor) === ymd(today)) return; cursor.setDate(cursor.getDate() + 1); switchDay(); };
-  const jump = $("todayJump");
-  jump.onclick = () => { cursor = new Date(today); switchDay(); };
-  jump.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); cursor = new Date(today); switchDay(); } };
+  // #todayJump es un <button> nativo: Enter/Espacio los maneja el navegador
+  $("todayJump").onclick = () => { cursor = new Date(today); switchDay(); };
 
   document.querySelectorAll("[data-toggle]").forEach((el) => {
     el.onclick = () => {
@@ -809,14 +885,26 @@ function bind() {
       scheduleSave(); renderScore();
     };
   });
-  $("weight").oninput = function () { state.rec.weight = this.value === "" ? "" : parseFloat(this.value); scheduleSave(); };
-  $("waist").oninput = function () { state.rec.waist = this.value === "" ? "" : parseFloat(this.value); scheduleSave(); };
-  $("sleep").oninput = function () { state.rec.sleep = this.value === "" ? "" : parseFloat(this.value); scheduleSave(); renderScore(); };
-  $("gi").oninput = function () { state.rec.gi = +this.value; $("giVal").textContent = this.value; scheduleSave(); };
+  $("weight").oninput = function () { state.rec.weight = cleanNum(this.value); scheduleSave(); };
+  $("waist").oninput = function () { state.rec.waist = cleanNum(this.value); scheduleSave(); };
+  $("sleep").oninput = function () { state.rec.sleep = cleanNum(this.value); scheduleSave(); renderScore(); };
+  $("gi").oninput = function () {
+    state.rec.gi = Math.min(10, Math.max(0, Math.round(+this.value) || 0));
+    $("giVal").textContent = state.rec.gi;
+    this.setAttribute("aria-valuetext", state.rec.gi + " de 10");
+    scheduleSave();
+  };
   $("notes").oninput = function () { state.rec.notes = this.value; scheduleSave(); };
 
-  $("startWeight").oninput = function () { state.profile.startWeight = this.value === "" ? DEFAULT_PROFILE.startWeight : parseFloat(this.value); renderGlobal(); scheduleProfileSave(); };
-  $("goalWeight").oninput = function () { state.profile.goal = this.value === "" ? DEFAULT_PROFILE.goal : parseFloat(this.value); renderGlobal(); scheduleProfileSave(); };
+  // peso inicial / meta: solo persistir cuando hay un número finito (no pisar con default al borrar)
+  $("startWeight").oninput = function () {
+    const v = parseFloat(this.value);
+    if (this.value !== "" && isFinite(v)) { state.profile.startWeight = v; renderGlobal(); scheduleProfileSave(); }
+  };
+  $("goalWeight").oninput = function () {
+    const v = parseFloat(this.value);
+    if (this.value !== "" && isFinite(v)) { state.profile.goal = v; renderGlobal(); scheduleProfileSave(); }
+  };
 
   $("expXlsx").onclick = exportXlsx;
   $("expJson").onclick = exportJson;
@@ -829,13 +917,23 @@ function bind() {
   window.addEventListener("online", () => { state.online = true; if (state.mode === "cloud") setSync("synced"); });
   window.addEventListener("offline", () => { state.online = false; if (state.mode === "cloud") setSync("offline"); });
 
-  // si vuelve la medianoche con la pestaña abierta, recalcular "hoy"
+  // no perder la última edición al cerrar/ocultar la pestaña dentro del debounce
+  window.addEventListener("beforeunload", flushPendingSave);
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") {
-      const t = new Date(); t.setHours(0, 0, 0, 0);
-      if (ymd(t) !== ymd(today)) { today = t; if (ymd(cursor) > ymd(today)) cursor = new Date(today); renderAll(); }
-    }
+    if (document.visibilityState === "hidden") { flushPendingSave(); flushPendingProfile(); }
+    else { rolloverDay(); }
   });
+  // chequeo de medianoche por si la pestaña queda abierta y visible cruzándola
+  setInterval(rolloverDay, 60 * 1000);
+}
+
+function rolloverDay() {
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  if (ymd(t) !== ymd(today)) {
+    today = t;
+    if (ymd(cursor) > ymd(today)) cursor = new Date(today);
+    renderAll();
+  }
 }
 
 // =============================================================================
@@ -843,7 +941,7 @@ function bind() {
 // =============================================================================
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("sw.js").catch((e) => console.warn("SW no registrado:", e));
+    navigator.serviceWorker.register("/sw.js").catch((e) => console.warn("SW no registrado:", e));
   });
 }
 
