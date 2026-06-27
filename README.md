@@ -99,6 +99,21 @@ Abre `http://localhost:5000`.
 - Autoriza tu dominio en **Authentication → Settings → Authorized domains** para
   que funcione el login con Google.
 
+## Acceso privado (un solo usuario)
+
+La app exige login **antes de ver o guardar nada** y solo permite **una cuenta**,
+reforzado en dos capas:
+
+- **Cliente:** `ALLOWED_EMAIL` en `public/app.js`. Otra cuenta se desconecta sola
+  y ve un gate de "app privada".
+- **Reglas:** `firestore.rules` solo concede acceso si
+  `request.auth.token.email == 'javier.neo@gmail.com'` y el email está verificado.
+  Esta es la barrera real (la UI por sí sola no protege los datos).
+
+Para cambiar la cuenta autorizada, edita **ambos** lugares (la constante en
+`app.js` y el email en `firestore.rules`) y vuelve a desplegar
+`firebase deploy --only hosting,firestore:rules`.
+
 ## Respaldo
 - **↓ Excel** / **↓ Backup JSON**: exportan todos tus registros.
 - **↑ Importar JSON**: restaura un backup (formato del export original o `{fecha: {...}}`).

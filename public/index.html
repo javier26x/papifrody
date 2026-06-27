@@ -17,7 +17,23 @@
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="locked">
+
+<!-- GATE DE LOGIN: cubre todo hasta que entres con la cuenta autorizada -->
+<div class="gate" id="gate">
+  <div class="gate-card">
+    <div class="gate-logo" aria-hidden="true">
+      <svg width="56" height="56" viewBox="0 0 64 64"><circle cx="32" cy="32" r="22" fill="none" stroke="#272C37" stroke-width="7"/><path d="M32 10 a22 22 0 0 1 0 44" fill="none" stroke="#5BC08A" stroke-width="7" stroke-linecap="round"/><path d="M32 10 a22 22 0 0 0 -19 11" fill="none" stroke="#F2A93B" stroke-width="7" stroke-linecap="round"/><circle cx="32" cy="32" r="5" fill="#F2A93B"/></svg>
+    </div>
+    <div class="gate-brand"><b>frody</b>.body</div>
+    <div class="gate-sub" id="gateSub">registro diario · privado</div>
+    <button class="gate-btn" id="gateSignIn" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38z"/></svg>
+      <span>Entrar con Google</span>
+    </button>
+    <div class="gate-msg" id="gateMsg" role="status" aria-live="polite">Verificando sesión…</div>
+  </div>
+</div>
 
 <div class="topbar">
   <div class="row">

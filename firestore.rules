@@ -8,8 +8,14 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // app personal: además de ser dueño del path, exige que sea ESA cuenta de
+    // Google (verificada). Cualquier otra sesión queda denegada por las reglas,
+    // no solo por la UI.
     function isOwner(uid) {
-      return request.auth != null && request.auth.uid == uid;
+      return request.auth != null
+        && request.auth.uid == uid
+        && request.auth.token.email == 'javier.neo@gmail.com'
+        && request.auth.token.email_verified == true;
     }
 
     // Validación de un documento de día. El cliente (normalize()) siempre escribe

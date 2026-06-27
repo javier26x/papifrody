@@ -10,6 +10,21 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1
 .hidden{display:none !important}
 [hidden]{display:none !important}
 
+/* gate de login: bloquea la app hasta entrar con la cuenta autorizada */
+body.locked{overflow:hidden}
+body.locked .topbar,body.locked .wrap,body.locked .savetag{display:none !important}
+.gate{position:fixed;inset:0;z-index:200;background:radial-gradient(120% 80% at 50% 0%,#1b1e25 0%,var(--bg) 60%);display:flex;align-items:center;justify-content:center;padding:24px}
+.gate-card{width:100%;max-width:340px;text-align:center;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:34px 26px}
+.gate-logo{margin-bottom:14px}
+.gate-brand{font-family:var(--mono);font-size:18px;font-weight:600;letter-spacing:.01em}
+.gate-brand b{color:var(--amber)}
+.gate-sub{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-top:6px}
+.gate-btn{margin:22px auto 0;display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:var(--ink);color:#15171C;border:none;border-radius:11px;padding:13px 16px;font-family:var(--sans);font-size:14px;font-weight:700;cursor:pointer;transition:opacity .15s}
+.gate-btn:hover{opacity:.9}
+.gate-btn svg{width:18px;height:18px}
+.gate-msg{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:16px;line-height:1.6;min-height:18px}
+.gate-msg.err{color:var(--coral)}
+
 /* top bar */
 .topbar{position:sticky;top:0;z-index:50;background:rgba(21,23,28,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
 .topbar .row{max-width:560px;margin:0 auto;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px}

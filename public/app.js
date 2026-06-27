@@ -15,6 +15,8 @@ import { firebaseConfig, isConfigured } from "./firebase-config.js";
 "use strict";
 
 // ---------- constantes ----------
+// app personal: solo esta cuenta puede entrar (reforzado también en firestore.rules)
+const ALLOWED_EMAIL = "javier.neo@gmail.com";
 const PREFIX = "frodybody:";
 const PROFILE_KEY = "frodybody:profile";
 const FB_VERSION = "10.12.2";
@@ -216,48 +218,67 @@ async function loadFirebase() {
 // =============================================================================
 // AUTH
 // =============================================================================
+let pendingGateMsg = "";   // mensaje a mostrar en el gate tras un signOut forzado
+
 async function initAuth() {
-  if (!isConfigured()) { enterLocalMode(); renderBanner(); return; }
+  if (!isConfigured()) { lockGate({ msg: "Falta configurar Firebase en firebase-config.js." }); return; }
+  lockGate({ loading: true });
   try {
     const { authMod, auth } = await loadFirebase();
     await authMod.setPersistence(auth, authMod.browserLocalPersistence).catch(() => {});
     // completa el login si venimos de un signInWithRedirect (y surfacea sus errores)
-    authMod.getRedirectResult(auth).catch((e) => {
-      console.error("redirect result:", e);
-      toast("No se pudo completar el login", "err");
-    });
-    authMod.onAuthStateChanged(auth, (user) => {
-      if (user) enterCloudMode(user);
-      else enterLocalMode();
-      renderAuthUI();
-      renderBanner();
-    });
+    authMod.getRedirectResult(auth).catch((e) => { console.error("redirect result:", e); });
+    authMod.onAuthStateChanged(auth, handleAuthUser);
   } catch (e) {
-    console.error("Firebase no se pudo iniciar, sigo en modo local:", e);
-    enterLocalMode();
-    renderBanner();
-    toast("Firebase no disponible · modo local", "err");
+    console.error("Firebase no se pudo iniciar:", e);
+    lockGate({ err: "No se pudo conectar con Firebase. Revisa tu conexión y reintenta." });
   }
 }
 
+// decide acceso: solo la cuenta autorizada entra; cualquier otra se desconecta
+async function handleAuthUser(user) {
+  if (!user) {
+    detachCloud();
+    state.user = null;
+    lockGate({ msg: pendingGateMsg });
+    pendingGateMsg = "";
+    renderAuthUI();
+    return;
+  }
+  if (user.email !== ALLOWED_EMAIL || !user.emailVerified) {
+    pendingGateMsg = "Esta es una app privada. La cuenta " + (user.email || "elegida") + " no tiene acceso.";
+    try { const { authMod, auth } = await loadFirebase(); await authMod.signOut(auth); }
+    catch (e) { console.error(e); lockGate({ err: pendingGateMsg }); pendingGateMsg = ""; }
+    return; // el signOut dispara handleAuthUser(null), que muestra el mensaje
+  }
+  // cuenta autorizada
+  pendingGateMsg = "";
+  unlockGate();
+  if (state.mode !== "cloud" || !state.user || state.user.uid !== user.uid) enterCloudMode(user);
+  renderAuthUI();
+}
+
 async function signIn() {
+  lockGate({ loading: true, loadingTxt: "Conectando con Google…" });
   try {
     const { authMod, auth } = await loadFirebase();
     const provider = new authMod.GoogleAuthProvider();
+    // sugiere la cuenta correcta y obliga a elegir cuenta
+    provider.setCustomParameters({ login_hint: ALLOWED_EMAIL, prompt: "select_account" });
     await authMod.signInWithPopup(auth, provider);
   } catch (e) {
     console.error(e);
     if (e && e.code === "auth/popup-blocked") {
-      // fallback a redirect si el popup fue bloqueado
       try {
         const { authMod, auth } = await loadFirebase();
-        await authMod.signInWithRedirect(auth, new authMod.GoogleAuthProvider());
+        const p = new authMod.GoogleAuthProvider();
+        p.setCustomParameters({ login_hint: ALLOWED_EMAIL, prompt: "select_account" });
+        await authMod.signInWithRedirect(auth, p);
         return;
       } catch (e2) { console.error(e2); }
     }
-    if (!(e && e.code === "auth/cancelled-popup-request") && !(e && e.code === "auth/popup-closed-by-user")) {
-      toast("No se pudo entrar", "err");
-    }
+    // volver a mostrar el botón (a menos que el usuario solo cerró el popup)
+    lockGate({ msg: (e && (e.code === "auth/cancelled-popup-request" || e.code === "auth/popup-closed-by-user")) ? "" : "No se pudo entrar. Reintenta." });
   }
 }
 
@@ -265,8 +286,27 @@ async function doSignOut() {
   try {
     const { authMod, auth } = await loadFirebase();
     await authMod.signOut(auth);
-    toast("Sesión cerrada", "info");
   } catch (e) { console.error(e); }
+}
+
+// ---------- gate de login ----------
+function lockGate(opts) {
+  opts = opts || {};
+  document.body.classList.add("locked");
+  const gate = $("gate"); gate.hidden = false;
+  const btn = $("gateSignIn"); const msg = $("gateMsg");
+  msg.classList.toggle("err", !!opts.err);
+  if (opts.loading) {
+    btn.hidden = true;
+    msg.textContent = opts.loadingTxt || "Verificando sesión…";
+  } else {
+    btn.hidden = false;
+    msg.textContent = opts.err || opts.msg || "";
+  }
+}
+function unlockGate() {
+  document.body.classList.remove("locked");
+  $("gate").hidden = true;
 }
 
 // =============================================================================
@@ -276,22 +316,6 @@ let cloudGen = 0; // invalida suscripciones de enterCloudMode que quedaron en vu
 function detachCloud() {
   if (cloud.unsubDays) { cloud.unsubDays(); cloud.unsubDays = null; }
   if (cloud.unsubProfile) { cloud.unsubProfile(); cloud.unsubProfile = null; }
-}
-
-function enterLocalMode() {
-  // vacía cualquier escritura pendiente con el modo aún vigente antes de cambiar
-  flushPendingSave();
-  flushPendingProfile();
-  cloudGen++;
-  detachCloud();
-  state.mode = "local";
-  state.user = null;
-  state.migrationChecked = false;
-  state.showMigration = false;
-  localLoadAll();
-  state.rec = currentRec();
-  setSync("local");
-  renderAll();
 }
 
 async function enterCloudMode(user) {
@@ -304,6 +328,9 @@ async function enterCloudMode(user) {
   state.migrationChecked = false;
   state.showMigration = false;
   setSync(state.online ? "synced" : "offline");
+  // render inmediato del armazón (los snapshots rellenan los datos enseguida)
+  state.rec = currentRec();
+  renderAll();
   try {
     const { fsMod, db } = await loadFirebase();
     if (gen !== cloudGen) return; // otra transición de auth ganó mientras cargábamos
@@ -329,7 +356,7 @@ async function enterCloudMode(user) {
     });
   } catch (e) {
     console.error(e);
-    enterLocalMode();
+    toast("Error al cargar tus datos", "err");
   }
 }
 
@@ -911,6 +938,7 @@ function bind() {
   $("impJson").onclick = () => $("impFile").click();
   $("impFile").onchange = function () { if (this.files && this.files[0]) importJson(this.files[0]); this.value = ""; };
 
+  $("gateSignIn").onclick = signIn;
   $("signInBtn").onclick = signIn;
   $("avatarBtn").onclick = () => { if (confirm("¿Cerrar sesión?")) doSignOut(); };
 
@@ -950,5 +978,5 @@ if ("serviceWorker" in navigator) {
 // =============================================================================
 state.rec = blank();
 bind();
-enterLocalMode();   // arranca local; si hay sesión, initAuth cambia a nube
+lockGate({ loading: true });  // bloqueado hasta verificar/iniciar sesión
 initAuth();
