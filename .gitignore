@@ -1,0 +1,23 @@
+# dependencias
+node_modules/
+
+# logs y debug de firebase
+*-debug.log
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+.firebase/
+
+# datos de los emuladores
+**/emulator-data/
+
+# entorno / secretos (la config web de Firebase NO es secreta, pero por si acaso)
+.env
+.env.*
+!.env.example
+
+# OS / editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
