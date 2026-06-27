@@ -14,12 +14,12 @@
 // ---------------------------------------------------------------------------
 
 export const firebaseConfig = {
-  apiKey: "TODO_API_KEY",
-  authDomain: "TODO_PROJECT.firebaseapp.com",
-  projectId: "TODO_PROJECT",
-  storageBucket: "TODO_PROJECT.appspot.com",
-  messagingSenderId: "TODO_SENDER_ID",
-  appId: "TODO_APP_ID"
+  apiKey: "AIzaSyASVNx7goELmi4R9tYaM0VrhA9fNf2zO70",
+  authDomain: "papifrody.firebaseapp.com",
+  projectId: "papifrody",
+  storageBucket: "papifrody.firebasestorage.app",
+  messagingSenderId: "479189128043",
+  appId: "1:479189128043:web:53ef06facf11c526bf722e"
 };
 
 // Devuelve true si todavía no pegaste tu config real. En ese caso la app corre
