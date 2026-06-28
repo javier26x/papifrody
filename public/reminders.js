@@ -14,25 +14,32 @@
   var KEY = "frody:reminders";
   var FIRED_KEY = "frody:reminders:fired";
 
-  // catálogo de recordatorios posibles
+  // catálogo de recordatorios (alineado con el stack real)
   var DEFAULTS = [
-    { id: "weigh",  label: "Pesaje al despertar",   icon: "monitor_weight",  color: "#5566F0", time: "07:30", days: "daily" },
-    { id: "suppAM", label: "Suplementos · mañana",  icon: "medication",      color: "#23a56a", time: "08:00", days: "daily" },
-    { id: "water",  label: "Agua + electrolitos",   icon: "water_drop",      color: "#2bb7d9", time: "13:00", days: "daily" },
-    { id: "protein",label: "Chequeo de proteína",   icon: "restaurant",      color: "#ef6b53", time: "18:00", days: "daily" },
-    { id: "inject", label: "Inyección Mounjaro",    icon: "vaccines",        color: "#e0922a", time: "09:00", days: "mon"   },
-    { id: "suppPM", label: "Suplementos · noche",   icon: "medication",      color: "#8b5cf6", time: "21:00", days: "daily" },
-    { id: "log",    label: "Registrar el día",      icon: "edit_note",       color: "#1ea8a0", time: "21:30", days: "daily" }
+    { id: "weigh",  label: "Pesaje al despertar",    icon: "monitor_weight", color: "#5566F0", time: "07:30", days: "daily" },
+    { id: "ashwa",  label: "Ashwagandha",            icon: "medication",     color: "#8b5cf6", time: "10:00", days: "daily" },
+    { id: "lunch",  label: "Suplementos · almuerzo", icon: "restaurant",     color: "#23a56a", time: "13:30", days: "daily" },
+    { id: "water",  label: "Agua + electrolitos",    icon: "water_drop",     color: "#2bb7d9", time: "15:00", days: "daily" },
+    { id: "omega",  label: "Omega 3 · cena",         icon: "set_meal",       color: "#e0922a", time: "20:30", days: "daily" },
+    { id: "mag",    label: "Magnesio",               icon: "bedtime",        color: "#6f7df6", time: "21:00", days: "daily" },
+    { id: "inject", label: "Inyección Mounjaro",     icon: "vaccines",       color: "#ef6b53", time: "09:00", days: "mon"   },
+    { id: "weekly", label: "Bonal D + Neurobión",    icon: "event",          color: "#1ea8a0", time: "11:00", days: "sun"   },
+    { id: "log",    label: "Registrar el día",       icon: "edit_note",      color: "#9aa0ac", time: "21:30", days: "daily" }
   ];
   var BODIES = {
     weigh:  "Pésate al despertar y registra el peso 📉",
-    suppAM: "Toma tus suplementos de la mañana 💊",
+    ashwa:  "Ashwagandha KSM-66 450 mg — abre tu ventana de comida 🧘",
+    lunch:  "Con el almuerzo: Omega 3, Zinc, Whey y Vit D3 💊 (Psyllium 15 min antes)",
     water:  "Hora de agua + electrolitos 💧",
-    protein:"¿Vas bien con la proteína de hoy? 🍗 (meta 160–180 g)",
-    inject: "Hoy es día de inyección · Mounjaro 💉",
-    suppPM: "Suplementos de la noche 🌙",
+    omega:  "Omega 3 con la cena (con grasa) 🐟",
+    mag:    "Magnesio bisglicinato 168 mg 🌙",
+    inject: "Hoy es día de inyección · Mounjaro 5 mg 💉",
+    weekly: "Domingo: Bonal D (gotas) + Neurobión (inyección) 📅",
     log:    "¿Ya registraste tu día en frody.body? ✍️"
   };
+  // mapeo de día → número/nombre (soporta cualquier día de la semana)
+  var DAYNUM = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+  var DAYNAME = { sun: "Domingo", mon: "Lunes", tue: "Martes", wed: "Miércoles", thu: "Jueves", fri: "Viernes", sat: "Sábado" };
 
   var TRIGGERS_OK = (typeof window !== "undefined") && (typeof window.TimestampTrigger !== "undefined") &&
     ("serviceWorker" in navigator) && ("Notification" in window);
@@ -70,7 +77,8 @@
   function ymd(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate() + 0).padStart(2, "0"); }
   function scheduleLabel(item) {
     var m = meta(item.id);
-    return (m && m.days === "mon" ? "Lunes" : "Todos los días") + " · " + item.time;
+    var d = (m && m.days) || "daily";
+    return (d === "daily" ? "Todos los días" : (DAYNAME[d] || d)) + " · " + item.time;
   }
   // próximas `count` marcas de tiempo futuras para un recordatorio
   function occurrences(item, count) {
@@ -80,7 +88,7 @@
     var guard = 0;
     while (out.length < count && guard < 400) {
       guard++;
-      var ok = !m || m.days === "daily" || (m.days === "mon" && d.getDay() === 1);
+      var ok = !m || m.days === "daily" || (DAYNUM[m.days] !== undefined && d.getDay() === DAYNUM[m.days]);
       if (ok && d.getTime() > now + 1000) out.push(d.getTime());
       d = new Date(d.getTime()); d.setDate(d.getDate() + 1); d.setHours(h, mi, 0, 0);
     }
@@ -136,7 +144,7 @@
     cfg.items.forEach(function (it) {
       if (!it.enabled) return;
       var m = meta(it.id);
-      if (m && m.days === "mon" && now.getDay() !== 1) return;
+      if (m && m.days !== "daily" && DAYNUM[m.days] !== undefined && now.getDay() !== DAYNUM[m.days]) return;
       var p = it.time.split(":"), sched = (+p[0]) * 60 + (+p[1]);
       if (fired[it.id] === today) return;
       // dispara si ya pasó la hora hoy y dentro de una ventana de 3h
@@ -154,7 +162,7 @@
       master: cfg.master,
       items: cfg.items.map(function (it) {
         var m = meta(it.id);
-        return { id: it.id, time: it.time, enabled: it.enabled, days: (m && m.days) || "daily" };
+        return { id: it.id, time: it.time, enabled: it.enabled, days: (m && m.days) || "daily", body: BODIES[it.id] || "" };
       })
     });
   }

@@ -24,15 +24,19 @@ const db = getFirestore();
 const APP_URL = "https://papifrody.web.app";
 const ALLOWED_EMAIL = "javier.neo@gmail.com";
 
+// respaldo por si un item llega sin 'body' (el cliente normalmente lo manda)
 const BODIES = {
   weigh: "Pésate al despertar y registra el peso 📉",
-  suppAM: "Toma tus suplementos de la mañana 💊",
+  ashwa: "Ashwagandha KSM-66 450 mg — abre tu ventana de comida 🧘",
+  lunch: "Con el almuerzo: Omega 3, Zinc, Whey y Vit D3 💊 (Psyllium 15 min antes)",
   water: "Hora de agua + electrolitos 💧",
-  protein: "¿Vas bien con la proteína de hoy? 🍗 (meta 160–180 g)",
-  inject: "Hoy es día de inyección · Mounjaro 💉",
-  suppPM: "Suplementos de la noche 🌙",
+  omega: "Omega 3 con la cena (con grasa) 🐟",
+  mag: "Magnesio bisglicinato 168 mg 🌙",
+  inject: "Hoy es día de inyección · Mounjaro 5 mg 💉",
+  weekly: "Domingo: Bonal D (gotas) + Neurobión (inyección) 📅",
   log: "¿Ya registraste tu día en frody.body? ✍️"
 };
+const DOW_CODE = { sun: "Sun", mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat" };
 
 // hora/fecha/día-de-semana locales en la zona horaria del usuario
 function localParts(date, tz) {
@@ -79,7 +83,7 @@ exports.sendReminders = onSchedule(
 
       (data.items || []).forEach((it) => {
         if (!it || !it.enabled) return;
-        if (it.days === "mon" && weekday !== "Mon") return;
+        if (it.days && it.days !== "daily" && DOW_CODE[it.days] && weekday !== DOW_CODE[it.days]) return;
         if (sentToday[it.id]) return;
         const m = /^(\d{1,2}):(\d{2})$/.exec(it.time || "");
         if (!m) return;
@@ -92,7 +96,7 @@ exports.sendReminders = onSchedule(
 
       const badTokens = new Set();
       for (const it of due) {
-        const body = BODIES[it.id] || "Recordatorio frody.body";
+        const body = it.body || BODIES[it.id] || "Recordatorio frody.body";
         const res = await getMessaging().sendEachForMulticast({
           tokens,
           data: { title: "frody.body", body, tag: "frody-" + it.id, url: APP_URL },

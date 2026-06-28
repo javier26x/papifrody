@@ -32,6 +32,7 @@ const SUPPS = [
   { id: "whey", name: "Whey" },
   { id: "psyllium", name: "Psyllium" },
   { id: "mag", name: "Magnesio" },
+  { id: "vitd3", name: "Vit D3" },
   { id: "tareg", name: "Tareg D" },
   { id: "bonald", name: "Bonal D", weekly: true },
   { id: "neuro", name: "Neurobión", weekly: true }
@@ -267,7 +268,7 @@ async function syncPushConfig(cfg) {
   try {
     const fb = await loadFirebase();
     const tz = (Intl.DateTimeFormat().resolvedOptions().timeZone) || "UTC";
-    const items = (cfg.items || []).map((it) => ({ id: it.id, time: it.time, enabled: !!it.enabled, days: it.days || "daily" }));
+    const items = (cfg.items || []).map((it) => ({ id: it.id, time: it.time, enabled: !!it.enabled, days: it.days || "daily", body: it.body || "" }));
     await fb.fsMod.setDoc(
       fb.fsMod.doc(fb.db, "users", state.user.uid, "meta", "reminders"),
       { master: !!cfg.master, tz, items },
