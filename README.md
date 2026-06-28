@@ -38,12 +38,17 @@ login con Google y soporte offline. Instalable como app (PWA).
 ├── .firebaserc              # alias del proyecto (cambia "frody-body")
 ├── firestore.rules          # cada usuario solo accede a SUS datos
 ├── firestore.indexes.json
+├── functions/               # Cloud Functions (envío de recordatorios push)
+│   ├── index.js             # sendReminders: cron cada 5 min → FCM
+│   └── package.json
 └── public/
     ├── index.html
     ├── styles.css           # tema claro/oscuro (variables CSS)
-    ├── app.js               # lógica + Firebase (módulo ES, import dinámico)
+    ├── app.js               # lógica + Firebase + push (módulo ES)
     ├── ui.js                # presentación: tabs + tema (no toca datos)
-    ├── firebase-config.js   # ← pega aquí tu config web
+    ├── reminders.js         # recordatorios: UI + programación local/servidor
+    ├── firebase-config.js   # ← pega aquí tu config web + VAPID key
+    ├── firebase-messaging-sw.js  # recibe los push de FCM (app cerrada)
     ├── manifest.webmanifest
     ├── sw.js                # service worker (app-shell)
     └── icon-180/192/512.png
@@ -122,6 +127,43 @@ reforzado en dos capas:
 Para cambiar la cuenta autorizada, edita **ambos** lugares (la constante en
 `app.js` y el email en `firestore.rules`) y vuelve a desplegar
 `firebase deploy --only hosting,firestore:rules`.
+
+## Notificaciones push (recordatorios con la app cerrada)
+
+Los recordatorios (Ajustes → Recordatorios) funcionan en dos niveles:
+
+- **Sin servidor (por defecto):** notificaciones locales. En **Android/Chrome
+  instalado** llegan con la app cerrada (Notification Triggers); en **iPhone**
+  solo con la app abierta.
+- **Con servidor (FCM + Cloud Functions):** llegan con la app cerrada en
+  cualquier dispositivo. La función `sendReminders` corre cada 5 min y manda el
+  push a su hora, en tu zona horaria.
+
+### Activar el push por servidor
+
+1. **Plan Blaze:** Consola → ⚙️ → Usage and billing → modifica al plan **Blaze**
+   (pide tarjeta; para un usuario el costo real es ~$0/mes). Pon una **alerta de
+   presupuesto en $1** por tranquilidad.
+2. **VAPID key:** Consola → Project settings → **Cloud Messaging** → *Web Push
+   certificates* → **Generate key pair** → copia la clave pública y pégala en
+   `public/firebase-config.js` (`VAPID_KEY`).
+3. **Habilita las APIs** (una vez):
+   ```bash
+   gcloud services enable cloudfunctions.googleapis.com cloudscheduler.googleapis.com \
+     cloudbuild.googleapis.com artifactregistry.googleapis.com eventarc.googleapis.com \
+     run.googleapis.com pubsub.googleapis.com
+   ```
+4. **Despliega** todo:
+   ```bash
+   firebase deploy --only functions,hosting,firestore:rules
+   ```
+   (La primera vez `firebase` instala las dependencias de `functions/` solo.)
+
+**iPhone:** para recibir push con la app cerrada hay que **agregar la PWA a la
+pantalla de inicio** (iOS 16.4+). Es un gesto único; límite de Apple.
+
+> Si dejas `VAPID_KEY` en `TODO_…`, la app ignora el push por servidor y usa solo
+> los recordatorios locales (no necesitas Blaze).
 
 ## Respaldo
 - **↓ Excel** / **↓ Backup JSON**: exportan todos tus registros.

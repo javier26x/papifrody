@@ -29,3 +29,17 @@ export function isConfigured() {
     return typeof v !== "string" || v.indexOf("TODO_") === 0;
   });
 }
+
+// ---------------------------------------------------------------------------
+// Notificaciones push (FCM) — OPCIONAL.
+// Para que los recordatorios lleguen con la app CERRADA (vía Cloud Functions):
+//   Consola → Project settings → Cloud Messaging → "Web Push certificates"
+//   → Generate key pair → copia la clave pública y pégala acá.
+// Si lo dejas en "TODO_", la app usa los recordatorios locales (en el
+// dispositivo) y no intenta push por servidor.
+// ---------------------------------------------------------------------------
+export const VAPID_KEY = "TODO_VAPID_PUBLIC_KEY";
+
+export function pushConfigured() {
+  return isConfigured() && typeof VAPID_KEY === "string" && VAPID_KEY.indexOf("TODO_") !== 0 && VAPID_KEY.length > 20;
+}

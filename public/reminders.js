@@ -105,6 +105,7 @@
 
   // ---------- programación en el dispositivo (Notification Triggers) ----------
   async function scheduleTriggers() {
+    if (pushOn()) return;   // el servidor (Cloud Functions) ya los manda
     if (!TRIGGERS_OK) return;
     try {
       var reg = await navigator.serviceWorker.ready;
@@ -127,6 +128,7 @@
 
   // ---------- disparo en primer plano (fallback iOS/sin triggers) ----------
   function tick() {
+    if (pushOn()) return;    // el servidor (Cloud Functions) ya los manda
     if (TRIGGERS_OK) return; // ya programado en el dispositivo
     if (!cfg.master || !("Notification" in window) || Notification.permission !== "granted") return;
     var now = new Date(), nowMin = now.getHours() * 60 + now.getMinutes(), today = ymd(now);
@@ -143,7 +145,23 @@
     if (changed) saveFired(fired);
   }
 
-  function reschedule() { save(); scheduleTriggers(); }
+  // ---------- puente con el push del servidor (app.js / Cloud Functions) ----------
+  function pushOn() { return !!(window.frodyPush && window.frodyPush.active); }
+  function pushAvail() { return !!(window.frodyPush && window.frodyPush.available && window.frodyPush.available()); }
+  function cloudSync() {
+    if (!window.frodyPush || !window.frodyPush.syncConfig) return;
+    window.frodyPush.syncConfig({
+      master: cfg.master,
+      items: cfg.items.map(function (it) {
+        var m = meta(it.id);
+        return { id: it.id, time: it.time, enabled: it.enabled, days: (m && m.days) || "daily" };
+      })
+    });
+  }
+
+  // guarda local, sube la config al servidor y, SOLO si el push del servidor no
+  // está activo, programa los avisos localmente (así nunca llegan duplicados).
+  function reschedule() { save(); cloudSync(); if (!pushOn()) scheduleTriggers(); }
 
   // ---------- permiso ----------
   async function ensurePermission() {
@@ -186,6 +204,8 @@
         var st = await ensurePermission();
         if (st !== "granted") { cfg.master = false; render(); return; }
         cfg.master = true;
+        // registra el token push (servidor) si está configurado
+        if (pushAvail()) { try { await window.frodyPush.enable(); } catch (e) {} }
       } else { cfg.master = false; }
       btn.classList.toggle("on", cfg.master);
       btn.setAttribute("aria-checked", cfg.master ? "true" : "false");
@@ -222,9 +242,15 @@
     // nota honesta sobre la entrega
     var note = document.createElement("div");
     note.className = "rem-note";
-    note.textContent = TRIGGERS_OK
-      ? "Programadas en tu dispositivo: llegan aunque cierres la app. Instálala para que no se borren."
-      : "Tu navegador (p. ej. iPhone) solo entrega los avisos con la app abierta. Para recibirlos cerrada, ábrela en Android/Chrome o instálala.";
+    if (pushAvail()) {
+      note.textContent = pushOn()
+        ? "Push del servidor activo: los avisos llegan con la app cerrada en cualquier dispositivo (en iPhone, instala la app en la pantalla de inicio)."
+        : "Push del servidor disponible: activa Notificaciones para recibir los avisos con la app cerrada.";
+    } else {
+      note.textContent = TRIGGERS_OK
+        ? "Programadas en tu dispositivo: llegan aunque cierres la app. Instálala para que no se borren."
+        : "Tu navegador (p. ej. iPhone) solo entrega los avisos con la app abierta. Para recibirlos cerrada, ábrela en Android/Chrome o instálala.";
+    }
     box.appendChild(note);
 
     var perm = document.getElementById("remPerm");
@@ -234,14 +260,20 @@
   // ---------- init ----------
   function init() {
     render();
-    // primer plano: revisa cada 30 s (solo hace algo si no hay triggers)
+    // primer plano: revisa cada 30 s (solo hace algo si no hay push ni triggers)
     setInterval(tick, 30 * 1000);
     tick();
     // refresca la ventana de programación al volver a la app
     document.addEventListener("visibilitychange", function () {
       if (document.visibilityState === "visible") { scheduleTriggers(); tick(); render(); }
     });
-    if (cfg.master) scheduleTriggers();
+    // cuando app.js entra en modo nube: sube la config y registra el token push
+    window.addEventListener("frody-push-ready", async function () {
+      cloudSync();
+      if (cfg.master && pushAvail()) { try { await window.frodyPush.enable(); } catch (e) {} }
+      render();
+    });
+    if (cfg.master && !pushOn()) scheduleTriggers();
   }
 
   // expone hooks mínimos para pruebas (no afecta el uso normal)

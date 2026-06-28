@@ -10,7 +10,7 @@
 // El SDK de Firebase se carga con import() dinámico SOLO si hay config, así la
 // app sigue abriendo aunque no haya internet ni Firebase configurado.
 // =============================================================================
-import { firebaseConfig, isConfigured } from "./firebase-config.js";
+import { firebaseConfig, isConfigured, VAPID_KEY, pushConfigured } from "./firebase-config.js";
 
 "use strict";
 
@@ -194,10 +194,11 @@ const cloud = {
 
 async function loadFirebase() {
   if (cloud.fb) return cloud.fb;
-  const [appMod, authMod, fsMod] = await Promise.all([
+  const [appMod, authMod, fsMod, msgMod] = await Promise.all([
     import(FB_CDN + "/firebase-app.js"),
     import(FB_CDN + "/firebase-auth.js"),
-    import(FB_CDN + "/firebase-firestore.js")
+    import(FB_CDN + "/firebase-firestore.js"),
+    import(FB_CDN + "/firebase-messaging.js").catch(() => null) // opcional (push)
   ]);
   const app = appMod.initializeApp(firebaseConfig);
   const auth = authMod.getAuth(app);
@@ -211,9 +212,75 @@ async function loadFirebase() {
     // si ya estaba inicializado o el navegador no soporta el cache persistente
     db = fsMod.getFirestore(app);
   }
-  cloud.fb = { appMod, authMod, fsMod, app, auth, db };
+  cloud.fb = { appMod, authMod, fsMod, msgMod, app, auth, db };
   return cloud.fb;
 }
+
+// =============================================================================
+// PUSH (FCM) — notificaciones que llegan con la app CERRADA (vía Cloud Functions)
+// reminders.js maneja la UI; aquí registramos el token y subimos la config al
+// servidor. window.frodyPush es el puente entre ambos.
+// =============================================================================
+const push = { msg: null, bound: false };
+
+async function enablePush() {
+  if (!pushConfigured() || state.mode !== "cloud" || !state.user) return false;
+  if (!("Notification" in window) || Notification.permission !== "granted") return false;
+  try {
+    const fb = await loadFirebase();
+    if (!fb.msgMod || !(await fb.msgMod.isSupported())) return false;
+    if (!push.msg) push.msg = fb.msgMod.getMessaging(fb.app);
+    const token = await fb.msgMod.getToken(push.msg, { vapidKey: VAPID_KEY });
+    if (!token) return false;
+    await fb.fsMod.setDoc(
+      fb.fsMod.doc(fb.db, "users", state.user.uid, "meta", "reminders"),
+      { tokens: { [token]: { ua: navigator.userAgent.slice(0, 180), updatedAt: Date.now() } } },
+      { merge: true }
+    );
+    window.frodyPush.active = true;
+    bindForegroundPush(fb);
+    return true;
+  } catch (e) { console.warn("enablePush:", e); return false; }
+}
+
+function bindForegroundPush(fb) {
+  if (push.bound || !push.msg || !fb.msgMod) return;
+  push.bound = true;
+  fb.msgMod.onMessage(push.msg, (payload) => {
+    const d = (payload && payload.data) || {};
+    try {
+      if ("Notification" in window && Notification.permission === "granted" && navigator.serviceWorker) {
+        navigator.serviceWorker.ready.then((reg) => reg.showNotification(d.title || "frody.body", {
+          body: d.body || "", icon: "icon-192.png", badge: "icon-192.png", tag: d.tag || "frody", data: { url: d.url || "./" }
+        })).catch(() => {});
+      }
+    } catch (e) {}
+    if (d.body) toast(d.body, "info");
+  });
+}
+
+// reminders.js llama esto cuando cambias horarios/toggles: deja al servidor la
+// config (con tu zona horaria) sin tocar tokens/sent.
+async function syncPushConfig(cfg) {
+  if (state.mode !== "cloud" || !state.user) return;
+  try {
+    const fb = await loadFirebase();
+    const tz = (Intl.DateTimeFormat().resolvedOptions().timeZone) || "UTC";
+    const items = (cfg.items || []).map((it) => ({ id: it.id, time: it.time, enabled: !!it.enabled, days: it.days || "daily" }));
+    await fb.fsMod.setDoc(
+      fb.fsMod.doc(fb.db, "users", state.user.uid, "meta", "reminders"),
+      { master: !!cfg.master, tz, items },
+      { merge: true }
+    );
+  } catch (e) { console.warn("syncPushConfig:", e); }
+}
+
+window.frodyPush = {
+  active: false,
+  available: function () { return pushConfigured(); },
+  enable: enablePush,
+  syncConfig: syncPushConfig
+};
 
 // =============================================================================
 // AUTH
@@ -354,6 +421,8 @@ async function enterCloudMode(user) {
       console.error("days snapshot:", err);
       toast("Error de sincronización", "err");
     });
+    // avisa a reminders.js que ya puede sincronizar config / registrar token push
+    window.dispatchEvent(new CustomEvent("frody-push-ready"));
   } catch (e) {
     console.error(e);
     toast("Error al cargar tus datos", "err");

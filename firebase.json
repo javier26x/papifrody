@@ -26,6 +26,12 @@
         ]
       },
       {
+        "source": "/firebase-messaging-sw.js",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        ]
+      },
+      {
         "source": "**/*.@(js|css)",
         "headers": [
           { "key": "Cache-Control", "value": "public, max-age=3600" }
@@ -46,9 +52,14 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
+  "functions": {
+    "source": "functions",
+    "ignore": ["node_modules", ".git", "*.log"]
+  },
   "emulators": {
     "auth": { "port": 9099 },
     "firestore": { "port": 8080 },
+    "functions": { "port": 5001 },
     "hosting": { "port": 5000 },
     "ui": { "enabled": true },
     "singleProjectMode": true
