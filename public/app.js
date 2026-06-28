@@ -31,7 +31,7 @@ const SUPPS = [
   { id: "zinc",     name: "Zinc Picolinato",   dose: "50 mg · 1 cáp",     time: "13:30", slot: "Almuerzo · 3 días sí/4 no", icon: "medication",    color: "#2bb7d9" },
   { id: "whey",     name: "Whey",              dose: "1–2 scoops",        time: "13:30", slot: "Cerrar proteína",       icon: "blender",           color: "#5566F0" },
   { id: "vitd3",    name: "Vit D3",            dose: "5.000 UI · 1 cáp",  time: "13:30", slot: "Con comida",            icon: "wb_sunny",          color: "#e0922a" },
-  { id: "omega2",   name: "Omega 3",           dose: "1.200 mg · 1 cáp",  time: "20:30", slot: "Cena · con grasa",      icon: "set_meal",          color: "#e0922a" },
+  { id: "omega2",   name: "Omega 3",           dose: "1.200 mg · 1 cáp",  time: "17:30", slot: "Cena · con grasa",      icon: "set_meal",          color: "#e0922a" },
   { id: "mag",      name: "Magnesio Bisglic.", dose: "168 mg · 2 cáps",   time: "21:00", slot: "Noche",                 icon: "bedtime",           color: "#6f7df6" },
   { id: "creatina", name: "Creatina",          dose: "5 g (1 cdita)",     time: "",      slot: "Cualquier hora",        icon: "fitness_center",    color: "#ef6b53" },
   { id: "bonald",   name: "Bonal D (gotas)",   dose: "carga ×3",          time: "",      slot: "Domingo",               icon: "medication_liquid", color: "#1ea8a0", weekly: true },
@@ -753,9 +753,11 @@ function renderChips() {
 function renderSuppCount() {
   const el = $("suppCount");
   if (!el) return;
-  const daily = SUPPS.filter((x) => !x.weekly);
-  const taken = daily.filter((x) => state.rec.supps[x.id]).length;
-  el.textContent = taken + " / " + daily.length + " suplementos del día tomados";
+  // los semanales (Bonal D, Neurobión) solo cuentan los domingos
+  const isSunday = cursor.getDay() === 0;
+  const items = SUPPS.filter((x) => !x.weekly || isSunday);
+  const taken = items.filter((x) => state.rec.supps[x.id]).length;
+  el.textContent = taken + " / " + items.length + " suplementos " + (isSunday ? "de hoy" : "del día") + " tomados";
 }
 
 function renderScore() {
