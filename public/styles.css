@@ -332,6 +332,13 @@ body.locked .savetag{display:none !important}
   color:var(--ink);border-radius:9px;padding:6px 7px;width:104px;text-align:center;
 }
 .rem-time:focus{outline:none;border-color:var(--accent)}
+.rem-test{
+  display:block;width:100%;margin:12px 0 2px;background:var(--accent);color:#fff;border:none;
+  border-radius:11px;padding:12px;font-family:var(--mono);font-size:12px;font-weight:600;cursor:pointer;
+  transition:opacity .15s;
+}
+.rem-test:hover{opacity:.92}
+.rem-test:disabled{opacity:.6;cursor:default}
 .rem-note{font-family:var(--mono);font-size:10.5px;color:var(--faint);line-height:1.6;padding:13px 4px 5px}
 
 /* controles nativos (selector de hora, etc.) siguen el tema */

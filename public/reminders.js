@@ -239,6 +239,22 @@
       box.appendChild(row);
     });
 
+    // botón de prueba (solo con push de servidor disponible y notificaciones activas)
+    if (pushAvail() && cfg.master) {
+      var test = document.createElement("button");
+      test.type = "button";
+      test.className = "rem-test";
+      test.textContent = "Enviar notificación de prueba";
+      test.onclick = async function () {
+        test.disabled = true;
+        var old = test.textContent;
+        test.textContent = "Enviando…";
+        try { if (window.frodyPush && window.frodyPush.test) await window.frodyPush.test(); } catch (e) {}
+        test.textContent = old; test.disabled = false;
+      };
+      box.appendChild(test);
+    }
+
     // nota honesta sobre la entrega
     var note = document.createElement("div");
     note.className = "rem-note";

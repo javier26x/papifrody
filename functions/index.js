@@ -10,6 +10,7 @@
 //     tokens:{ "<fcmToken>": {ua, updatedAt} }, sent:{ "YYYY-MM-DD": {id:true} } }
 // =============================================================================
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { setGlobalOptions } = require("firebase-functions/v2");
 const logger = require("firebase-functions/logger");
 const { initializeApp } = require("firebase-admin/app");
@@ -21,6 +22,7 @@ setGlobalOptions({ region: "us-central1", maxInstances: 3 });
 
 const db = getFirestore();
 const APP_URL = "https://papifrody.web.app";
+const ALLOWED_EMAIL = "javier.neo@gmail.com";
 
 const BODIES = {
   weigh: "Pésate al despertar y registra el peso 📉",
@@ -128,3 +130,41 @@ exports.sendReminders = onSchedule(
     return null;
   }
 );
+
+// Notificación de prueba a demanda (botón en la app). Solo la cuenta autorizada.
+exports.sendTestPush = onCall(async (req) => {
+  const auth = req.auth;
+  if (!auth) throw new HttpsError("unauthenticated", "Inicia sesión.");
+  if (auth.token.email !== ALLOWED_EMAIL || auth.token.email_verified !== true) {
+    throw new HttpsError("permission-denied", "Cuenta no autorizada.");
+  }
+  const ref = db.doc(`users/${auth.uid}/meta/reminders`);
+  const snap = await ref.get();
+  const tokensMap = (snap.exists ? snap.data() : {}).tokens || {};
+  const tokens = Object.keys(tokensMap);
+  if (!tokens.length) {
+    throw new HttpsError("failed-precondition", "No hay dispositivos registrados. Activa las notificaciones primero.");
+  }
+  const res = await getMessaging().sendEachForMulticast({
+    tokens,
+    data: { title: "frody.body", body: "✅ Notificación de prueba — ¡el push funciona!", tag: "frody-test", url: APP_URL },
+    webpush: { fcmOptions: { link: APP_URL }, headers: { Urgency: "high", TTL: "600" } }
+  });
+  // poda tokens muertos
+  const bad = {};
+  res.responses.forEach((r, i) => {
+    if (!r.success) {
+      const code = r.error && r.error.code;
+      if (code === "messaging/registration-token-not-registered" ||
+          code === "messaging/invalid-argument" ||
+          code === "messaging/invalid-registration-token") bad[tokens[i]] = true;
+    }
+  });
+  if (Object.keys(bad).length) {
+    const kept = Object.assign({}, tokensMap);
+    Object.keys(bad).forEach((t) => delete kept[t]);
+    await ref.update({ tokens: kept });
+  }
+  logger.info(`sendTestPush: ${res.successCount} ok, ${res.failureCount} fallidos`);
+  return { sent: res.successCount, failed: res.failureCount };
+});

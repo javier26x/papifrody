@@ -194,11 +194,12 @@ const cloud = {
 
 async function loadFirebase() {
   if (cloud.fb) return cloud.fb;
-  const [appMod, authMod, fsMod, msgMod] = await Promise.all([
+  const [appMod, authMod, fsMod, msgMod, fnMod] = await Promise.all([
     import(FB_CDN + "/firebase-app.js"),
     import(FB_CDN + "/firebase-auth.js"),
     import(FB_CDN + "/firebase-firestore.js"),
-    import(FB_CDN + "/firebase-messaging.js").catch(() => null) // opcional (push)
+    import(FB_CDN + "/firebase-messaging.js").catch(() => null), // opcional (push)
+    import(FB_CDN + "/firebase-functions.js").catch(() => null)  // opcional (callable de prueba)
   ]);
   const app = appMod.initializeApp(firebaseConfig);
   const auth = authMod.getAuth(app);
@@ -212,7 +213,7 @@ async function loadFirebase() {
     // si ya estaba inicializado o el navegador no soporta el cache persistente
     db = fsMod.getFirestore(app);
   }
-  cloud.fb = { appMod, authMod, fsMod, msgMod, app, auth, db };
+  cloud.fb = { appMod, authMod, fsMod, msgMod, fnMod, app, auth, db };
   return cloud.fb;
 }
 
@@ -275,11 +276,32 @@ async function syncPushConfig(cfg) {
   } catch (e) { console.warn("syncPushConfig:", e); }
 }
 
+// envía una notificación de prueba a demanda (llama a la Cloud Function)
+async function testPush() {
+  if (state.mode !== "cloud" || !state.user) { toast("Inicia sesión primero", "err"); return false; }
+  try {
+    const fb = await loadFirebase();
+    if (!fb.fnMod) { toast("Funciones no disponibles", "err"); return false; }
+    const fns = fb.fnMod.getFunctions(fb.app, "us-central1");
+    const call = fb.fnMod.httpsCallable(fns, "sendTestPush");
+    const r = await call();
+    const sent = (r && r.data && r.data.sent) || 0;
+    toast(sent ? "Prueba enviada a " + sent + " dispositivo(s) ✓" : "No se pudo enviar", sent ? "info" : "err");
+    return sent > 0;
+  } catch (e) {
+    console.warn("testPush:", e);
+    const msg = (e && e.message) || "";
+    toast(/dispositivos registrados/i.test(msg) ? "Activa las notificaciones primero" : "Error al enviar la prueba", "err");
+    return false;
+  }
+}
+
 window.frodyPush = {
   active: false,
   available: function () { return pushConfigured(); },
   enable: enablePush,
-  syncConfig: syncPushConfig
+  syncConfig: syncPushConfig,
+  test: testPush
 };
 
 // =============================================================================
