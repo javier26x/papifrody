@@ -40,13 +40,22 @@ login con Google y soporte offline. Instalable como app (PWA).
 ├── firestore.indexes.json
 └── public/
     ├── index.html
-    ├── styles.css
-    ├── app.js               # lógica (módulo ES, Firebase por import dinámico)
+    ├── styles.css           # tema claro/oscuro (variables CSS)
+    ├── app.js               # lógica + Firebase (módulo ES, import dinámico)
+    ├── ui.js                # presentación: tabs + tema (no toca datos)
     ├── firebase-config.js   # ← pega aquí tu config web
     ├── manifest.webmanifest
     ├── sw.js                # service worker (app-shell)
     └── icon-180/192/512.png
 ```
+
+## Diseño
+
+UI estilo Apple Health, mobile-first, con **navegación por tabs** (Hoy ·
+Tendencias · Stack · Ajustes) y **tema claro/oscuro** (se autodetecta y se puede
+fijar en Ajustes). `ui.js` es solo presentación y se comunica con `app.js` por
+eventos (`frody-tab`, `frody-theme`) para re-dibujar el gráfico al mostrar la
+pestaña o cambiar de tema. Usa la fuente de iconos Material Symbols (vía CDN).
 
 ## Modelo de datos (Firestore)
 

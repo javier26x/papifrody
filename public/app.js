@@ -632,9 +632,9 @@ function renderGlobal() {
   if (recs.length) {
     let sum = 0;
     recs.forEach((r) => { sum += scorePct(r); });
-    $("adhAvg").textContent = "adherencia " + Math.round(sum / recs.length) + "%";
+    $("adhAvg").textContent = Math.round(sum / recs.length) + "%";
   } else {
-    $("adhAvg").textContent = "adherencia —";
+    $("adhAvg").textContent = "—";
   }
 
   streakCount();
@@ -667,16 +667,27 @@ function renderChart(recs) {
   }
   empty.style.display = "none";
   if (!chart) chart = echarts.init($("weightChart"), null, { renderer: "canvas" });
+  // colores tomados del tema activo (claro/oscuro) vía variables CSS
+  const cs = getComputedStyle(document.documentElement);
+  const cvar = (n, f) => (cs.getPropertyValue(n).trim() || f);
+  const cAxis = cvar("--chart-axis", "#9aa0ac");
+  const cGrid = cvar("--chart-grid", "rgba(120,130,150,.16)");
+  const cTipBg = cvar("--card", "#1E222B");
+  const cTipBd = cvar("--hair", "#323845");
+  const cInk = cvar("--ink", "#ECEAE3");
+  const cLine = cvar("--accent", "#5566F0");
+  const cArea = cvar("--chart-area", "rgba(85,102,240,.18)");
+  const cGoal = cvar("--ok", "#1f9e63");
   chart.setOption({
-    grid: { left: 38, right: 14, top: 18, bottom: 24 },
-    tooltip: { trigger: "axis", backgroundColor: "#1E222B", borderColor: "#323845", textStyle: { color: "#ECEAE3", fontFamily: "JetBrains Mono", fontSize: 11 } },
-    xAxis: { type: "category", data: pts.map((p) => p[0].slice(5)), axisLine: { lineStyle: { color: "#323845" } }, axisLabel: { color: "#6B7280", fontFamily: "JetBrains Mono", fontSize: 9 } },
-    yAxis: { type: "value", scale: true, axisLabel: { color: "#6B7280", fontFamily: "JetBrains Mono", fontSize: 9 }, splitLine: { lineStyle: { color: "rgba(50,56,69,.5)" } } },
+    grid: { left: 38, right: 16, top: 18, bottom: 24 },
+    tooltip: { trigger: "axis", backgroundColor: cTipBg, borderColor: cTipBd, textStyle: { color: cInk, fontFamily: "JetBrains Mono", fontSize: 11 } },
+    xAxis: { type: "category", data: pts.map((p) => p[0].slice(5)), axisLine: { lineStyle: { color: cGrid } }, axisLabel: { color: cAxis, fontFamily: "JetBrains Mono", fontSize: 9 } },
+    yAxis: { type: "value", scale: true, axisLabel: { color: cAxis, fontFamily: "JetBrains Mono", fontSize: 9 }, splitLine: { lineStyle: { color: cGrid } } },
     series: [{
       type: "line", data: pts.map((p) => p[1]), smooth: true, symbol: "circle", symbolSize: 6,
-      lineStyle: { color: "#F2A93B", width: 2.5 }, itemStyle: { color: "#F2A93B" },
-      areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: "rgba(242,169,59,.18)" }, { offset: 1, color: "rgba(242,169,59,0)" }]) },
-      markLine: { silent: true, symbol: "none", data: [{ yAxis: state.profile.goal }], lineStyle: { color: "#5BC08A", type: "dashed" }, label: { formatter: "meta " + state.profile.goal, color: "#5BC08A", fontFamily: "JetBrains Mono", fontSize: 10 } }
+      lineStyle: { color: cLine, width: 2.5 }, itemStyle: { color: cLine },
+      areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: cArea }, { offset: 1, color: "rgba(85,102,240,0)" }]) },
+      markLine: { silent: true, symbol: "none", data: [{ yAxis: state.profile.goal }], lineStyle: { color: cGoal, type: "dashed" }, label: { formatter: "meta " + state.profile.goal, color: cGoal, fontFamily: "JetBrains Mono", fontSize: 10 } }
     }]
   }, { notMerge: true });
   if (!resizeBound) { window.addEventListener("resize", () => { if (chart) chart.resize(); }); resizeBound = true; }
@@ -694,7 +705,7 @@ function renderAdh() {
     const bar = document.createElement("div");
     bar.className = "bar";
     bar.style.height = Math.max(4, pct * 0.72) + "px";
-    bar.style.background = pct >= 80 ? "#5BC08A" : pct >= 50 ? "#F2A93B" : pct > 0 ? "#DD6A56" : "#272C37";
+    bar.style.background = pct >= 80 ? "#23A56A" : pct >= 50 ? "#F2A93B" : pct > 0 ? "#DD6A56" : (getComputedStyle(document.documentElement).getPropertyValue("--bar-empty").trim() || "#272C37");
     bar.title = ds + " · " + pct + "%";
     const lbl = document.createElement("span"); lbl.textContent = DOW[d.getDay()].slice(0, 2);
     bar.appendChild(lbl);
@@ -951,6 +962,17 @@ function bind() {
     if (document.visibilityState === "hidden") { flushPendingSave(); flushPendingProfile(); }
     else { rolloverDay(); }
   });
+  // ---- integración con la UI nueva (ui.js): re-dibujar el gráfico al mostrar
+  //      la pestaña Tendencias o al cambiar de tema (claro/oscuro) ----
+  window.addEventListener("frody-tab", (e) => {
+    // re-crea el gráfico ya con el panel visible (evita init en 0×0 estando oculto)
+    if (e.detail === "trend") { if (chart) { chart.dispose(); chart = null; } renderGlobal(); }
+  });
+  window.addEventListener("frody-theme", () => {
+    if (chart) { chart.dispose(); chart = null; }
+    renderGlobal();
+  });
+
   // chequeo de medianoche por si la pestaña queda abierta y visible cruzándola
   setInterval(rolloverDay, 60 * 1000);
 }

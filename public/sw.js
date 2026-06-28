@@ -6,12 +6,13 @@
 // Las peticiones a Firebase / Google / fuentes / CDN (otro origen) pasan
 // directo a la red y NO se interceptan.
 
-const CACHE = "frodybody-v2";
+const CACHE = "frodybody-v3";
 const SHELL = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
+  "./ui.js",
   "./firebase-config.js",
   "./manifest.webmanifest",
   "./icon-180.png",

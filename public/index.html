@@ -3,16 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#15171C">
+<meta name="theme-color" content="#eef0f5">
 <meta name="description" content="frody.body — registro diario de peso, hábitos y Mounjaro, sincronizado en la nube.">
 <title>frody.body · registro diario</title>
+<!-- tema inicial antes de pintar (evita parpadeo) -->
+<script>(function(){try{var t=localStorage.getItem('frody:theme');if(t!=='light'&&t!=='dark')t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700;9..40,800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=JetBrains+Mono:wght@400;500;600&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&display=swap" rel="stylesheet">
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link rel="stylesheet" href="styles.css">
@@ -23,7 +25,7 @@
 <div class="gate" id="gate">
   <div class="gate-card">
     <div class="gate-logo" aria-hidden="true">
-      <svg width="56" height="56" viewBox="0 0 64 64"><circle cx="32" cy="32" r="22" fill="none" stroke="#272C37" stroke-width="7"/><path d="M32 10 a22 22 0 0 1 0 44" fill="none" stroke="#5BC08A" stroke-width="7" stroke-linecap="round"/><path d="M32 10 a22 22 0 0 0 -19 11" fill="none" stroke="#F2A93B" stroke-width="7" stroke-linecap="round"/><circle cx="32" cy="32" r="5" fill="#F2A93B"/></svg>
+      <svg width="56" height="56" viewBox="0 0 64 64"><circle class="rt" cx="32" cy="32" r="22" fill="none" stroke-width="7"/><path d="M32 10 a22 22 0 0 1 0 44" fill="none" stroke="#23A56A" stroke-width="7" stroke-linecap="round"/><path d="M32 10 a22 22 0 0 0 -19 11" fill="none" stroke="#F2A93B" stroke-width="7" stroke-linecap="round"/><circle cx="32" cy="32" r="5" fill="#F2A93B"/></svg>
     </div>
     <div class="gate-brand"><b>frody</b>.body</div>
     <div class="gate-sub" id="gateSub">registro diario · privado</div>
@@ -35,192 +37,251 @@
   </div>
 </div>
 
-<div class="topbar">
-  <div class="row">
-    <div class="brand"><b>frody</b>.body</div>
-    <div class="right">
-      <div class="sync" id="sync" data-state="local" title="Estado de sincronización"><span class="dot"></span><span id="syncTxt" aria-live="polite">local</span></div>
-      <div class="streak" title="Días seguidos con registro">🔥 <span id="streak">0</span></div>
-      <button class="authbtn" id="signInBtn" hidden>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38z"/></svg>
-        <span>Entrar</span>
-      </button>
-      <button class="avatar" id="avatarBtn" hidden aria-label="Cuenta"></button>
-    </div>
-  </div>
-</div>
+<div class="app">
 
-<div class="wrap">
-
-  <div class="datenav">
-    <button id="prevDay" aria-label="Día anterior">‹</button>
-    <button type="button" class="d" id="todayJump" title="Ir a hoy" aria-label="Ir a hoy">
-      <div class="dow" id="dow">—</div>
-      <div class="full" id="dfull">—</div>
-      <div class="today-pill" id="todayPill"></div>
-    </button>
-    <button id="nextDay" aria-label="Día siguiente">›</button>
-  </div>
-
-  <div class="hero">
-    <div class="stat">
-      <div class="k">Peso actual</div>
-      <div class="v"><span id="curWeight">—</span> <small>kg</small></div>
-      <div class="sub" id="weightDelta">—</div>
-    </div>
-    <div class="stat">
-      <div class="k">Registrados</div>
-      <div class="v" id="daysTracked">0 <small>días</small></div>
-      <div class="sub" id="adhAvg">adherencia —</div>
-    </div>
-  </div>
-
-  <div class="scorecard">
-    <div class="ring">
-      <svg width="64" height="64" aria-hidden="true">
-        <circle cx="32" cy="32" r="28" fill="none" stroke="#272C37" stroke-width="6"/>
-        <circle id="ringFill" cx="32" cy="32" r="28" fill="none" stroke="#5BC08A" stroke-width="6" stroke-linecap="round" stroke-dasharray="176" stroke-dashoffset="176"/>
-      </svg>
-      <div class="num" id="scoreNum">0%</div>
-    </div>
-    <div class="txt">
-      <div class="lbl">Score del día</div>
-      <div class="det" id="scoreDet">0 / 10 hábitos</div>
-    </div>
-  </div>
-
-  <!-- CUERPO -->
-  <div class="sec"><span class="t">cuerpo</span><span class="r"></span></div>
-  <div class="card">
-    <div class="item">
-      <label class="lab" for="weight">Peso <small>kg · registra al despertar</small></label>
-      <div><input class="ni" type="number" inputmode="decimal" step="0.1" id="weight" placeholder="—"><span class="ni-unit"> kg</span></div>
-    </div>
-    <div class="item">
-      <label class="lab" for="waist">Cintura <small>cm · la métrica que no miente</small></label>
-      <div><input class="ni" type="number" inputmode="decimal" step="0.5" id="waist" placeholder="—"><span class="ni-unit"> cm</span></div>
-    </div>
-  </div>
-
-  <!-- MOUNJARO -->
-  <div class="sec"><span class="t">kernel · mounjaro</span><span class="r"></span></div>
-  <div class="card mounjaro" id="mounjaroCard">
-    <div class="item">
-      <div class="lab" id="injLab">Inyección 5 mg <small id="injSub">día de inyección</small></div>
-      <button class="tg" data-toggle="injected" role="switch" aria-checked="false" aria-label="Inyección puesta"></button>
-    </div>
-    <div class="item" style="display:block">
-      <label class="lab" for="gi" style="margin-bottom:6px">Síntomas GI hoy <small>0 = nada · 10 = fuerte · peak es martes/miércoles</small></label>
-      <input type="range" class="gi-slider" id="gi" min="0" max="10" value="0">
-      <div class="gi-val"><span id="giVal">0</span> / 10</div>
-    </div>
-  </div>
-
-  <!-- PILARES -->
-  <div class="sec"><span class="t">6 pilares</span><span class="r"></span></div>
-  <div class="card">
-    <div class="item">
-      <div class="lab">P1 · Proteína <small>meta 160–180 g</small></div>
-      <div class="step">
-        <button data-step="protein" data-d="-10" aria-label="Restar 10 g proteína">−</button>
-        <div class="val"><span id="proteinVal">0</span><small>g</small></div>
-        <button data-step="protein" data-d="10" aria-label="Sumar 10 g proteína">+</button>
+  <!-- TOP BAR -->
+  <header class="appbar">
+    <div class="appbar-in">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 64 64"><circle class="rt" cx="32" cy="32" r="22" fill="none" stroke-width="7"/><path d="M32 10 a22 22 0 0 1 0 44" fill="none" stroke="#23A56A" stroke-width="7" stroke-linecap="round"/><path d="M32 10 a22 22 0 0 0 -19 11" fill="none" stroke="#F2A93B" stroke-width="7" stroke-linecap="round"/><circle cx="32" cy="32" r="5" fill="#F2A93B"/></svg></span>
+        <span class="brand-tx"><b>frody</b>.body</span>
+      </div>
+      <div class="appbar-right">
+        <div class="sync" id="sync" data-state="local" title="Estado de sincronización"><span class="dot"></span><span id="syncTxt" aria-live="polite">local</span></div>
+        <div class="streak" title="Días seguidos con registro"><span class="ms streak-ic" aria-hidden="true">local_fire_department</span><span id="streak">0</span></div>
+        <button class="iconbtn" id="themeBtn" aria-label="Cambiar tema"><span class="ms" id="themeIcon" aria-hidden="true">dark_mode</span></button>
+        <button class="authbtn" id="signInBtn" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38z"/></svg>
+          <span>Entrar</span>
+        </button>
+        <button class="avatar" id="avatarBtn" hidden aria-label="Cuenta"></button>
       </div>
     </div>
-    <div class="item">
-      <div class="lab">P5 · Agua <small>vasos · +electrolitos</small></div>
-      <div class="step">
-        <button data-step="water" data-d="-1" aria-label="Restar 1 vaso de agua">−</button>
-        <div class="val"><span id="waterVal">0</span><small>vasos</small></div>
-        <button data-step="water" data-d="1" aria-label="Sumar 1 vaso de agua">+</button>
+  </header>
+
+  <!-- CONTENIDO (scrollable) -->
+  <main class="content">
+
+    <!-- ============================ HOY ============================ -->
+    <section class="panel" data-panel="hoy" data-screen-label="Hoy">
+
+      <div class="datenav">
+        <button class="navbtn" id="prevDay" aria-label="Día anterior"><span class="ms">chevron_left</span></button>
+        <button type="button" class="d" id="todayJump" title="Ir a hoy" aria-label="Ir a hoy">
+          <div class="dow" id="dow">—</div>
+          <div class="full" id="dfull">—</div>
+          <div class="today-pill" id="todayPill"></div>
+        </button>
+        <button class="navbtn" id="nextDay" aria-label="Día siguiente"><span class="ms">chevron_right</span></button>
       </div>
-    </div>
-    <div class="item">
-      <label class="lab" for="sleep">P2 · Sueño <small>horas</small></label>
-      <div><input class="ni" type="number" inputmode="decimal" step="0.5" id="sleep" placeholder="—"><span class="ni-unit"> h</span></div>
-    </div>
-    <div class="item">
-      <div class="lab">P2 · Sol al despertar <small>en la bici · fija el circadiano</small></div>
-      <button class="tg" data-toggle="sunAM" role="switch" aria-checked="false" aria-label="Sol al despertar"></button>
-    </div>
-    <div class="item">
-      <div class="lab">P6 · Bici <small>~24 km · zona 2</small></div>
-      <button class="tg" data-toggle="bike" role="switch" aria-checked="false" aria-label="Bici"></button>
-    </div>
-    <div class="item">
-      <div class="lab">P6 · Fuerza <small>el que protege músculo</small></div>
-      <button class="tg" data-toggle="strength" role="switch" aria-checked="false" aria-label="Fuerza"></button>
-    </div>
-    <div class="item">
-      <div class="lab">P4 · Comida limpia <small>sin ultraprocesados</small></div>
-      <button class="tg" data-toggle="cleanFood" role="switch" aria-checked="false" aria-label="Comida limpia"></button>
-    </div>
-    <div class="item">
-      <div class="lab">P4 · Cero azúcar líquida <small>nada de bebidas/jugos</small></div>
-      <button class="tg" data-toggle="noLiquidSugar" role="switch" aria-checked="false" aria-label="Cero azúcar líquida"></button>
-    </div>
-    <div class="item">
-      <div class="lab">P3 · Estrés controlado <small>sin descontrol emocional</small></div>
-      <button class="tg" data-toggle="stressOK" role="switch" aria-checked="false" aria-label="Estrés controlado"></button>
-    </div>
-  </div>
 
-  <!-- SUPLEMENTOS -->
-  <div class="sec"><span class="t">stack · suplementos</span><span class="r"></span></div>
-  <div class="card">
-    <div class="chips" id="chips"></div>
-  </div>
+      <!-- score hero -->
+      <div class="hero-card">
+        <div class="ring">
+          <svg class="ringsvg" width="88" height="88" viewBox="0 0 64 64" aria-hidden="true">
+            <circle class="rt" cx="32" cy="32" r="28" fill="none" stroke-width="6"/>
+            <circle id="ringFill" cx="32" cy="32" r="28" fill="none" stroke="#5BC08A" stroke-width="6" stroke-linecap="round" stroke-dasharray="176" stroke-dashoffset="176"/>
+          </svg>
+          <div class="ring-num" id="scoreNum">0%</div>
+        </div>
+        <div class="hero-tx">
+          <div class="hero-lbl">Score del día</div>
+          <div class="hero-det" id="scoreDet">0 / 10 hábitos</div>
+          <div class="hero-w">
+            <span class="hero-w-v"><span id="curWeight">—</span> <small>kg</small></span>
+            <span class="hero-w-d" id="weightDelta">—</span>
+          </div>
+        </div>
+      </div>
 
-  <!-- NOTAS -->
-  <div class="sec"><span class="t">notas del día</span><span class="r"></span></div>
-  <label for="notes" class="hidden">Notas del día</label>
-  <textarea id="notes" maxlength="4000" placeholder="Cómo te sentiste, antojos, energía, lo que sea…"></textarea>
+      <!-- cuerpo -->
+      <div class="grouplab">Cuerpo</div>
+      <div class="card list">
+        <div class="row">
+          <span class="row-ic" style="--c:#5566F0"><span class="ms">monitor_weight</span></span>
+          <label class="row-main" for="weight"><span class="row-t">Peso</span><span class="row-s">kg · al despertar</span></label>
+          <span class="field"><input class="ni" type="number" inputmode="decimal" step="0.1" id="weight" placeholder="—"><i>kg</i></span>
+        </div>
+        <div class="row">
+          <span class="row-ic" style="--c:#1ea8a0"><span class="ms">straighten</span></span>
+          <label class="row-main" for="waist"><span class="row-t">Cintura</span><span class="row-s">cm · la que no miente</span></label>
+          <span class="field"><input class="ni" type="number" inputmode="decimal" step="0.5" id="waist" placeholder="—"><i>cm</i></span>
+        </div>
+      </div>
 
-  <!-- MÉTRICAS -->
-  <div class="sec"><span class="t">tendencia · peso</span><span class="r"></span></div>
-  <div class="card" style="padding:14px 16px">
-    <div id="weightChart" role="img" aria-label="Tendencia de peso"></div>
-    <div class="chart-empty" id="chartEmpty">Registra tu peso unos días y aquí aparece la curva hacia tu meta.</div>
-    <div class="ministat" id="chartMini"></div>
-  </div>
+      <!-- mounjaro -->
+      <div class="grouplab">Mounjaro</div>
+      <div class="card mounjaro" id="mounjaroCard">
+        <div class="row">
+          <span class="row-ic" style="--c:#e0922a"><span class="ms">medication</span></span>
+          <div class="row-main"><span class="row-t" id="injLab">Inyección 5 mg</span><span class="row-s" id="injSub">día de inyección</span></div>
+          <button class="tg" data-toggle="injected" role="switch" aria-checked="false" aria-label="Inyección puesta"></button>
+        </div>
+        <div class="row col">
+          <label class="gi-head" for="gi"><span class="row-t">Síntomas GI hoy</span><span class="row-s">0 = nada · 10 = fuerte · peak mar/mié</span></label>
+          <input type="range" class="gi-slider" id="gi" min="0" max="10" value="0">
+          <div class="gi-val"><span id="giVal">0</span> / 10</div>
+        </div>
+      </div>
 
-  <div class="sec"><span class="t">adherencia · últimos 7 días</span><span class="r"></span></div>
-  <div class="card" style="padding:14px 16px 24px">
-    <div class="adh" id="adhBars"></div>
-  </div>
+      <!-- 6 pilares -->
+      <div class="grouplab">6 pilares</div>
+      <div class="card list">
+        <div class="row">
+          <span class="row-ic" style="--c:#ef6b53"><span class="ms">restaurant</span></span>
+          <div class="row-main"><span class="row-t">Proteína</span><span class="row-s">meta 160–180 g</span></div>
+          <span class="step">
+            <button data-step="protein" data-d="-10" aria-label="Restar 10 g proteína"><span class="ms">remove</span></button>
+            <span class="step-v"><span id="proteinVal">0</span><small>g</small></span>
+            <button data-step="protein" data-d="10" aria-label="Sumar 10 g proteína"><span class="ms">add</span></button>
+          </span>
+        </div>
+        <div class="row">
+          <span class="row-ic" style="--c:#2bb7d9"><span class="ms">water_drop</span></span>
+          <div class="row-main"><span class="row-t">Agua</span><span class="row-s">vasos · +electrolitos</span></div>
+          <span class="step">
+            <button data-step="water" data-d="-1" aria-label="Restar 1 vaso de agua"><span class="ms">remove</span></button>
+            <span class="step-v"><span id="waterVal">0</span><small>vasos</small></span>
+            <button data-step="water" data-d="1" aria-label="Sumar 1 vaso de agua"><span class="ms">add</span></button>
+          </span>
+        </div>
+        <div class="row">
+          <span class="row-ic" style="--c:#8b5cf6"><span class="ms">bedtime</span></span>
+          <label class="row-main" for="sleep"><span class="row-t">Sueño</span><span class="row-s">horas</span></label>
+          <span class="field"><input class="ni" type="number" inputmode="decimal" step="0.5" id="sleep" placeholder="—"><i>h</i></span>
+        </div>
+        <div class="row">
+          <span class="row-ic" style="--c:#e0922a"><span class="ms">sunny</span></span>
+          <div class="row-main"><span class="row-t">Sol al despertar</span><span class="row-s">en la bici · fija el circadiano</span></div>
+          <button class="tg" data-toggle="sunAM" role="switch" aria-checked="false" aria-label="Sol al despertar"></button>
+        </div>
+        <div class="row">
+          <span class="row-ic" style="--c:#3b82f6"><span class="ms">directions_bike</span></span>
+          <div class="row-main"><span class="row-t">Bici</span><span class="row-s">~24 km · zona 2</span></div>
+          <button class="tg" data-toggle="bike" role="switch" aria-checked="false" aria-label="Bici"></button>
+        </div>
+        <div class="row">
+          <span class="row-ic" style="--c:#ef6b53"><span class="ms">fitness_center</span></span>
+          <div class="row-main"><span class="row-t">Fuerza</span><span class="row-s">el que protege músculo</span></div>
+          <button class="tg" data-toggle="strength" role="switch" aria-checked="false" aria-label="Fuerza"></button>
+        </div>
+        <div class="row">
+          <span class="row-ic" style="--c:#23a56a"><span class="ms">nutrition</span></span>
+          <div class="row-main"><span class="row-t">Comida limpia</span><span class="row-s">sin ultraprocesados</span></div>
+          <button class="tg" data-toggle="cleanFood" role="switch" aria-checked="false" aria-label="Comida limpia"></button>
+        </div>
+        <div class="row">
+          <span class="row-ic" style="--c:#a855f7"><span class="ms">no_drinks</span></span>
+          <div class="row-main"><span class="row-t">Cero azúcar líquida</span><span class="row-s">nada de bebidas/jugos</span></div>
+          <button class="tg" data-toggle="noLiquidSugar" role="switch" aria-checked="false" aria-label="Cero azúcar líquida"></button>
+        </div>
+        <div class="row">
+          <span class="row-ic" style="--c:#1ea8a0"><span class="ms">self_improvement</span></span>
+          <div class="row-main"><span class="row-t">Estrés controlado</span><span class="row-s">sin descontrol emocional</span></div>
+          <button class="tg" data-toggle="stressOK" role="switch" aria-checked="false" aria-label="Estrés controlado"></button>
+        </div>
+      </div>
 
-  <!-- AJUSTES -->
-  <div class="sec"><span class="t">ajustes · meta</span><span class="r"></span></div>
-  <div class="settings">
-    <div class="item">
-      <label class="lab" for="startWeight">Peso inicial <small>punto de partida</small></label>
-      <div><input class="ni" type="number" inputmode="decimal" step="0.1" id="startWeight" placeholder="—"><span class="ni-unit"> kg</span></div>
-    </div>
-    <div class="item">
-      <label class="lab" for="goalWeight">Meta <small>a dónde vamos</small></label>
-      <div><input class="ni" type="number" inputmode="decimal" step="0.1" id="goalWeight" placeholder="—"><span class="ni-unit"> kg</span></div>
-    </div>
-  </div>
+      <!-- notas -->
+      <div class="grouplab">Notas del día</div>
+      <div class="card notes-card">
+        <label for="notes" class="hidden">Notas del día</label>
+        <textarea id="notes" maxlength="4000" placeholder="Cómo te sentiste, antojos, energía, lo que sea…"></textarea>
+      </div>
+    </section>
 
-  <!-- EXPORT -->
-  <div class="sec"><span class="t">respaldo</span><span class="r"></span></div>
-  <div class="export">
-    <button id="expXlsx">↓ Excel</button>
-    <button id="expJson">↓ Backup JSON</button>
-    <button id="impJson">↑ Importar JSON</button>
-    <input type="file" id="impFile" accept="application/json,.json" hidden>
-  </div>
+    <!-- ============================ TENDENCIAS ============================ -->
+    <section class="panel" data-panel="trend" data-screen-label="Tendencias" hidden>
+      <div class="ptitle">Tendencias</div>
 
-  <div class="note-banner" id="noteBanner">
-    <b>// nota</b><br>
-    <span id="noteBannerTxt">Cargando…</span>
-    <div id="noteBannerActions"></div>
-  </div>
+      <div class="statgrid">
+        <div class="card stat2"><div class="stat2-k">Registrados</div><div class="stat2-v" id="daysTracked">0 <small>días</small></div></div>
+        <div class="card stat2"><div class="stat2-k">Adherencia</div><div class="stat2-v adh-v" id="adhAvg">—</div></div>
+      </div>
+
+      <div class="grouplab">Peso · hacia la meta</div>
+      <div class="card chart-card">
+        <div id="weightChart" role="img" aria-label="Tendencia de peso"></div>
+        <div class="chart-empty" id="chartEmpty">Registra tu peso unos días y aquí aparece la curva hacia tu meta.</div>
+        <div class="ministat" id="chartMini"></div>
+      </div>
+
+      <div class="grouplab">Adherencia · últimos 7 días</div>
+      <div class="card adh-card">
+        <div class="adh" id="adhBars"></div>
+      </div>
+    </section>
+
+    <!-- ============================ STACK ============================ -->
+    <section class="panel" data-panel="stack" data-screen-label="Stack" hidden>
+      <div class="ptitle">Stack</div>
+      <div class="grouplab">Suplementos del día</div>
+      <div class="card chips-card">
+        <div class="chips" id="chips"></div>
+      </div>
+    </section>
+
+    <!-- ============================ AJUSTES ============================ -->
+    <section class="panel" data-panel="ajustes" data-screen-label="Ajustes" hidden>
+      <div class="ptitle">Ajustes</div>
+
+      <div class="grouplab">Cuenta · sincronización</div>
+      <div class="note-banner card" id="noteBanner">
+        <span id="noteBannerTxt">Cargando…</span>
+        <div id="noteBannerActions"></div>
+      </div>
+
+      <div class="grouplab">Meta</div>
+      <div class="card list">
+        <div class="row">
+          <span class="row-ic" style="--c:#9aa0ac"><span class="ms">flag</span></span>
+          <label class="row-main" for="startWeight"><span class="row-t">Peso inicial</span><span class="row-s">punto de partida</span></label>
+          <span class="field"><input class="ni" type="number" inputmode="decimal" step="0.1" id="startWeight" placeholder="—"><i>kg</i></span>
+        </div>
+        <div class="row">
+          <span class="row-ic" style="--c:#23a56a"><span class="ms">target</span></span>
+          <label class="row-main" for="goalWeight"><span class="row-t">Meta</span><span class="row-s">a dónde vamos</span></label>
+          <span class="field"><input class="ni" type="number" inputmode="decimal" step="0.1" id="goalWeight" placeholder="—"><i>kg</i></span>
+        </div>
+      </div>
+
+      <div class="grouplab">Apariencia</div>
+      <div class="card seg-card">
+        <div class="seg-row">
+          <span class="row-t">Tema</span>
+          <div class="seg">
+            <button data-theme-btn="light" aria-pressed="true">☼ Claro</button>
+            <button data-theme-btn="dark" aria-pressed="false">☾ Oscuro</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grouplab">Respaldo</div>
+      <div class="card list">
+        <button class="row rowbtn" id="expXlsx"><span class="row-ic" style="--c:#23a56a"><span class="ms">download</span></span><span class="row-main"><span class="row-t">Exportar Excel</span></span><span class="ms chev">chevron_right</span></button>
+        <button class="row rowbtn" id="expJson"><span class="row-ic" style="--c:#5566F0"><span class="ms">data_object</span></span><span class="row-main"><span class="row-t">Backup JSON</span></span><span class="ms chev">chevron_right</span></button>
+        <button class="row rowbtn" id="impJson"><span class="row-ic" style="--c:#e0922a"><span class="ms">upload</span></span><span class="row-main"><span class="row-t">Importar JSON</span></span><span class="ms chev">chevron_right</span></button>
+        <input type="file" id="impFile" accept="application/json,.json" hidden>
+      </div>
+
+      <div class="foot">frody.body · sincronizado en la nube · datos privados</div>
+    </section>
+
+  </main>
+
+  <!-- BOTTOM TAB BAR -->
+  <nav class="tabbar" role="tablist" aria-label="Secciones">
+    <button class="tab on" data-tab="hoy" role="tab" aria-selected="true"><span class="ms">today</span><span>Hoy</span></button>
+    <button class="tab" data-tab="trend" role="tab" aria-selected="false"><span class="ms">monitoring</span><span>Tendencias</span></button>
+    <button class="tab" data-tab="stack" role="tab" aria-selected="false"><span class="ms">medication</span><span>Stack</span></button>
+    <button class="tab" data-tab="ajustes" role="tab" aria-selected="false"><span class="ms">tune</span><span>Ajustes</span></button>
+  </nav>
 
 </div>
 
 <div class="savetag" id="savetag" role="status" aria-live="polite">guardado ✓</div>
 
 <script type="module" src="app.js"></script>
+<script defer src="ui.js"></script>
 </body>
 </html>
