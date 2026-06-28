@@ -235,6 +235,12 @@ body.locked .savetag{display:none !important}
 .chart-empty{font-family:var(--mono);font-size:12px;color:var(--faint);text-align:center;padding:46px 12px}
 .ministat{font-family:var(--mono);font-size:11px;color:var(--sec);text-align:center;padding:8px 0 2px}
 
+/* stack · suplementos como lista de control */
+.supp-row .row-s{font-family:var(--mono)}
+.supp-weekly .row-t::after{content:" · semanal";color:var(--faint);font-weight:400;font-size:11px}
+.supp-row{transition:opacity .15s}
+.supp-row:not(.supp-on){opacity:.72}
+
 .adh-card{padding:18px 16px 14px}
 .adh{display:flex;align-items:flex-end;gap:7px;height:96px}
 .adh .bar{flex:1;background:var(--bar-empty);border-radius:6px;position:relative;min-height:5px;transition:height .3s}

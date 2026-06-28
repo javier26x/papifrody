@@ -24,18 +24,18 @@ const FB_CDN = "https://www.gstatic.com/firebasejs/" + FB_VERSION;
 const DEFAULT_PROFILE = { startWeight: 132.9, goal: 100 };
 
 const SUPPS = [
-  { id: "ashwa", name: "Ashwagandha" },
-  { id: "omega1", name: "Omega 3 (1ª)" },
-  { id: "omega2", name: "Omega 3 (2ª)" },
-  { id: "zinc", name: "Zinc" },
-  { id: "creatina", name: "Creatina" },
-  { id: "whey", name: "Whey" },
-  { id: "psyllium", name: "Psyllium" },
-  { id: "mag", name: "Magnesio" },
-  { id: "vitd3", name: "Vit D3" },
-  { id: "tareg", name: "Tareg D" },
-  { id: "bonald", name: "Bonal D", weekly: true },
-  { id: "neuro", name: "Neurobión", weekly: true }
+  { id: "ashwa",    name: "Ashwagandha",       dose: "450 mg · 1 cáp",    when: "10:00",                    icon: "spa",               color: "#8b5cf6" },
+  { id: "omega1",   name: "Omega 3 · almuerzo", dose: "1.200 mg · 1 cáp", when: "almuerzo (con grasa)",     icon: "set_meal",          color: "#e0922a" },
+  { id: "omega2",   name: "Omega 3 · cena",    dose: "1.200 mg · 1 cáp",  when: "cena (con grasa)",         icon: "set_meal",          color: "#e0922a" },
+  { id: "zinc",     name: "Zinc Picolinato",   dose: "50 mg · 1 cáp",     when: "almuerzo · 3 días sí/4 no", icon: "medication",       color: "#2bb7d9" },
+  { id: "creatina", name: "Creatina",          dose: "5 g (1 cdita)",     when: "cualquier hora",           icon: "fitness_center",    color: "#ef6b53" },
+  { id: "whey",     name: "Whey",              dose: "1–2 scoops",        when: "cerrar proteína",          icon: "blender",           color: "#5566F0" },
+  { id: "psyllium", name: "Psyllium",          dose: "5 g (1 cdita)",     when: "15 min antes de comer",    icon: "grass",             color: "#23a56a" },
+  { id: "mag",      name: "Magnesio Bisglic.", dose: "168 mg · 2 cáps",   when: "21:00",                    icon: "bedtime",           color: "#6f7df6" },
+  { id: "vitd3",    name: "Vit D3",            dose: "5.000 UI · 1 cáp",  when: "con comida",               icon: "wb_sunny",          color: "#e0922a" },
+  { id: "tareg",    name: "Tareg D",           dose: "160/12.5",          when: "diario · fármaco",         icon: "cardiology",        color: "#dd6a56" },
+  { id: "bonald",   name: "Bonal D (gotas)",   dose: "carga ×3",          when: "domingo",                  icon: "medication_liquid", color: "#1ea8a0", weekly: true },
+  { id: "neuro",    name: "Neurobión",         dose: "inyección · ×3",    when: "domingo",                  icon: "vaccines",          color: "#a855f7", weekly: true }
 ];
 const TOGGLES = ["injected", "sunAM", "bike", "strength", "cleanFood", "noLiquidSugar", "stressOK"];
 const DAY_FIELDS = ["weight", "waist", "injected", "gi", "protein", "water", "sleep",
@@ -661,19 +661,49 @@ function renderChips() {
   const box = $("chips");
   box.innerHTML = "";
   SUPPS.forEach((x) => {
-    const c = document.createElement("button");
-    c.type = "button";
-    c.className = "chip" + (x.weekly ? " weekly" : "") + (state.rec.supps[x.id] ? " on" : "");
-    c.textContent = x.name;
-    c.setAttribute("aria-pressed", state.rec.supps[x.id] ? "true" : "false");
-    c.onclick = () => {
+    const taken = !!state.rec.supps[x.id];
+    const row = document.createElement("div");
+    row.className = "row supp-row" + (x.weekly ? " supp-weekly" : "") + (taken ? " supp-on" : "");
+
+    const ic = document.createElement("span");
+    ic.className = "row-ic";
+    ic.style.setProperty("--c", x.color || "#5566F0");
+    ic.innerHTML = '<span class="ms">' + (x.icon || "medication") + "</span>";
+
+    const main = document.createElement("div");
+    main.className = "row-main";
+    const t = document.createElement("span"); t.className = "row-t"; t.textContent = x.name;
+    const s = document.createElement("span"); s.className = "row-s";
+    s.textContent = [x.dose, x.when].filter(Boolean).join(" · ");
+    main.appendChild(t); main.appendChild(s);
+
+    const tg = document.createElement("button");
+    tg.type = "button";
+    tg.className = "tg" + (taken ? " on" : "");
+    tg.setAttribute("role", "switch");
+    tg.setAttribute("aria-checked", taken ? "true" : "false");
+    tg.setAttribute("aria-label", x.name + (taken ? " (tomado)" : ""));
+    tg.onclick = () => {
       state.rec.supps[x.id] = !state.rec.supps[x.id];
-      c.classList.toggle("on");
-      c.setAttribute("aria-pressed", state.rec.supps[x.id] ? "true" : "false");
-      scheduleSave(); renderScore();
+      const on = state.rec.supps[x.id];
+      tg.classList.toggle("on", on);
+      tg.setAttribute("aria-checked", on ? "true" : "false");
+      row.classList.toggle("supp-on", on);
+      scheduleSave(); renderScore(); renderSuppCount();
     };
-    box.appendChild(c);
+
+    row.appendChild(ic); row.appendChild(main); row.appendChild(tg);
+    box.appendChild(row);
   });
+  renderSuppCount();
+}
+
+function renderSuppCount() {
+  const el = $("suppCount");
+  if (!el) return;
+  const daily = SUPPS.filter((x) => !x.weekly);
+  const taken = daily.filter((x) => state.rec.supps[x.id]).length;
+  el.textContent = taken + " / " + daily.length + " suplementos del día";
 }
 
 function renderScore() {
