@@ -33,9 +33,12 @@ html[data-theme="dark"]{
 
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
+/* touch-action:manipulation = sin zoom por doble-tap (y sin el delay de 300ms),
+   pero conserva el pinch-zoom para accesibilidad */
+html{touch-action:manipulation}
 body{
   background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.5;
-  -webkit-font-smoothing:antialiased;
+  -webkit-font-smoothing:antialiased;touch-action:manipulation;
   transition:background .25s ease,color .25s ease;
 }
 .hidden{display:none !important}
@@ -321,6 +324,19 @@ body.locked .savetag{display:none !important}
 .gate-btn svg{width:18px;height:18px;background:#fff;border-radius:3px;padding:1px}
 .gate-msg{font-family:var(--mono);font-size:11.5px;color:var(--sec);margin-top:16px;line-height:1.6;min-height:18px}
 .gate-msg.err{color:var(--warn)}
+
+/* =================== RECORDATORIOS =================== */
+.rem-row .rem-ctl{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.rem-time{
+  font-family:var(--mono);font-size:13px;background:var(--chip);border:1px solid var(--chipbd);
+  color:var(--ink);border-radius:9px;padding:6px 7px;width:104px;text-align:center;
+}
+.rem-time:focus{outline:none;border-color:var(--accent)}
+.rem-note{font-family:var(--mono);font-size:10.5px;color:var(--faint);line-height:1.6;padding:13px 4px 5px}
+
+/* controles nativos (selector de hora, etc.) siguen el tema */
+html[data-theme="light"]{color-scheme:light}
+html[data-theme="dark"]{color-scheme:dark}
 
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 

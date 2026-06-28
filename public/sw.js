@@ -6,13 +6,14 @@
 // Las peticiones a Firebase / Google / fuentes / CDN (otro origen) pasan
 // directo a la red y NO se interceptan.
 
-const CACHE = "frodybody-v3";
+const CACHE = "frodybody-v4";
 const SHELL = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
   "./ui.js",
+  "./reminders.js",
   "./firebase-config.js",
   "./manifest.webmanifest",
   "./icon-180.png",
@@ -57,5 +58,16 @@ self.addEventListener("fetch", (e) => {
       .catch(() =>
         caches.match(req).then((m) => m || (req.mode === "navigate" ? caches.match("./index.html") : Response.error()))
       )
+  );
+});
+
+// al tocar una notificación de recordatorio: enfoca la app o ábrela
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  e.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const c of list) { if ("focus" in c) return c.focus(); }
+      if (self.clients.openWindow) return self.clients.openWindow("./");
+    })
   );
 });
