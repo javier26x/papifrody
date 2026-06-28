@@ -235,11 +235,31 @@ body.locked .savetag{display:none !important}
 .chart-empty{font-family:var(--mono);font-size:12px;color:var(--faint);text-align:center;padding:46px 12px}
 .ministat{font-family:var(--mono);font-size:11px;color:var(--sec);text-align:center;padding:8px 0 2px}
 
-/* stack · suplementos como lista de control */
-.supp-row .row-s{font-family:var(--mono)}
-.supp-weekly .row-t::after{content:" · semanal";color:var(--faint);font-weight:400;font-size:11px}
-.supp-row{transition:opacity .15s}
-.supp-row:not(.supp-on){opacity:.72}
+/* stack · agenda diaria (estilo Outlook) */
+.agenda{position:relative;padding:2px 0 4px}
+.ag-row{display:flex;gap:8px;align-items:stretch}
+.ag-time{width:42px;flex-shrink:0;text-align:right;font-family:var(--mono);font-size:12px;font-weight:600;color:var(--sec);padding-top:13px}
+.ag-rail{flex-shrink:0;width:14px;position:relative;display:flex;justify-content:center}
+.ag-rail::before{content:"";position:absolute;top:0;bottom:0;width:2px;background:var(--hair)}
+.ag-row:first-child .ag-rail::before{top:14px}
+.ag-row:last-child .ag-rail::before{bottom:auto;height:20px}
+.ag-dot{position:relative;margin-top:14px;width:11px;height:11px;border-radius:50%;background:var(--card);border:2px solid var(--c,var(--accent));flex-shrink:0;z-index:1}
+.ag-events{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;padding:7px 0 10px}
+.ag-ev{display:flex;align-items:center;gap:11px;background:var(--card);border:1px solid var(--cardbd);border-left:3px solid var(--c,var(--accent));border-radius:13px;box-shadow:var(--shadow-sm);padding:10px 12px;transition:opacity .15s}
+.ag-ic{width:30px;height:30px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--c,#5566F0) 16%,transparent);color:var(--c,#5566F0)}
+.ag-ic .ms{font-size:18px}
+.ag-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.ag-name{font-size:14px;font-weight:600;color:var(--ink)}
+.ag-meta{font-size:11px;color:var(--sec);font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ag-ev.done{opacity:.55}
+.ag-ev.done .ag-name{text-decoration:line-through;text-decoration-color:var(--faint)}
+.ag-ev.overdue{border-left-color:var(--warn)}
+.ag-ev.overdue .ag-ic{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn)}
+/* línea de "ahora" */
+.ag-now{display:flex;align-items:center;gap:8px;margin:1px 0}
+.ag-now-time{width:42px;flex-shrink:0;text-align:right;font-family:var(--mono);font-size:11px;font-weight:700;color:var(--warn)}
+.ag-now-line{flex:1;height:2px;background:var(--warn);border-radius:2px;position:relative;margin-left:8px}
+.ag-now-line::before{content:"";position:absolute;left:-3px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--warn)}
 
 .adh-card{padding:18px 16px 14px}
 .adh{display:flex;align-items:flex-end;gap:7px;height:96px}

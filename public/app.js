@@ -24,18 +24,18 @@ const FB_CDN = "https://www.gstatic.com/firebasejs/" + FB_VERSION;
 const DEFAULT_PROFILE = { startWeight: 132.9, goal: 100 };
 
 const SUPPS = [
-  { id: "ashwa",    name: "Ashwagandha",       dose: "450 mg · 1 cáp",    when: "10:00",                    icon: "spa",               color: "#8b5cf6" },
-  { id: "omega1",   name: "Omega 3 · almuerzo", dose: "1.200 mg · 1 cáp", when: "almuerzo (con grasa)",     icon: "set_meal",          color: "#e0922a" },
-  { id: "omega2",   name: "Omega 3 · cena",    dose: "1.200 mg · 1 cáp",  when: "cena (con grasa)",         icon: "set_meal",          color: "#e0922a" },
-  { id: "zinc",     name: "Zinc Picolinato",   dose: "50 mg · 1 cáp",     when: "almuerzo · 3 días sí/4 no", icon: "medication",       color: "#2bb7d9" },
-  { id: "creatina", name: "Creatina",          dose: "5 g (1 cdita)",     when: "cualquier hora",           icon: "fitness_center",    color: "#ef6b53" },
-  { id: "whey",     name: "Whey",              dose: "1–2 scoops",        when: "cerrar proteína",          icon: "blender",           color: "#5566F0" },
-  { id: "psyllium", name: "Psyllium",          dose: "5 g (1 cdita)",     when: "15 min antes de comer",    icon: "grass",             color: "#23a56a" },
-  { id: "mag",      name: "Magnesio Bisglic.", dose: "168 mg · 2 cáps",   when: "21:00",                    icon: "bedtime",           color: "#6f7df6" },
-  { id: "vitd3",    name: "Vit D3",            dose: "5.000 UI · 1 cáp",  when: "con comida",               icon: "wb_sunny",          color: "#e0922a" },
-  { id: "tareg",    name: "Tareg D",           dose: "160/12.5",          when: "diario · fármaco",         icon: "cardiology",        color: "#dd6a56" },
-  { id: "bonald",   name: "Bonal D (gotas)",   dose: "carga ×3",          when: "domingo",                  icon: "medication_liquid", color: "#1ea8a0", weekly: true },
-  { id: "neuro",    name: "Neurobión",         dose: "inyección · ×3",    when: "domingo",                  icon: "vaccines",          color: "#a855f7", weekly: true }
+  { id: "tareg",    name: "Tareg D",           dose: "160/12.5",          time: "08:00", slot: "Fármaco diario",       icon: "cardiology",        color: "#dd6a56" },
+  { id: "ashwa",    name: "Ashwagandha",       dose: "450 mg · 1 cáp",    time: "10:00", slot: "Abre la ventana de comida", icon: "spa",          color: "#8b5cf6" },
+  { id: "psyllium", name: "Psyllium",          dose: "5 g (1 cdita)",     time: "13:15", slot: "15 min antes de comer", icon: "grass",             color: "#23a56a" },
+  { id: "omega1",   name: "Omega 3",           dose: "1.200 mg · 1 cáp",  time: "13:30", slot: "Almuerzo · con grasa",  icon: "set_meal",          color: "#e0922a" },
+  { id: "zinc",     name: "Zinc Picolinato",   dose: "50 mg · 1 cáp",     time: "13:30", slot: "Almuerzo · 3 días sí/4 no", icon: "medication",    color: "#2bb7d9" },
+  { id: "whey",     name: "Whey",              dose: "1–2 scoops",        time: "13:30", slot: "Cerrar proteína",       icon: "blender",           color: "#5566F0" },
+  { id: "vitd3",    name: "Vit D3",            dose: "5.000 UI · 1 cáp",  time: "13:30", slot: "Con comida",            icon: "wb_sunny",          color: "#e0922a" },
+  { id: "omega2",   name: "Omega 3",           dose: "1.200 mg · 1 cáp",  time: "20:30", slot: "Cena · con grasa",      icon: "set_meal",          color: "#e0922a" },
+  { id: "mag",      name: "Magnesio Bisglic.", dose: "168 mg · 2 cáps",   time: "21:00", slot: "Noche",                 icon: "bedtime",           color: "#6f7df6" },
+  { id: "creatina", name: "Creatina",          dose: "5 g (1 cdita)",     time: "",      slot: "Cualquier hora",        icon: "fitness_center",    color: "#ef6b53" },
+  { id: "bonald",   name: "Bonal D (gotas)",   dose: "carga ×3",          time: "",      slot: "Domingo",               icon: "medication_liquid", color: "#1ea8a0", weekly: true },
+  { id: "neuro",    name: "Neurobión",         dose: "inyección · ×3",    time: "",      slot: "Domingo",               icon: "vaccines",          color: "#a855f7", weekly: true }
 ];
 const TOGGLES = ["injected", "sunAM", "bike", "strength", "cleanFood", "noLiquidSugar", "stressOK"];
 const DAY_FIELDS = ["weight", "waist", "injected", "gi", "protein", "water", "sleep",
@@ -657,44 +657,96 @@ function renderRec() {
   renderScore();
 }
 
+// ---------- stack como agenda diaria (estilo Outlook) ----------
+function tmin(hhmm) { const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm || ""); return m ? (+m[1]) * 60 + (+m[2]) : null; }
+function fmtMin(m) { return String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0"); }
+
+function makeEvent(x, past) {
+  const taken = !!state.rec.supps[x.id];
+  const ev = document.createElement("div");
+  ev.className = "ag-ev" + (taken ? " done" : (past ? " overdue" : ""));
+  ev.style.setProperty("--c", x.color || "#5566F0");
+
+  const ic = document.createElement("span");
+  ic.className = "ag-ic"; ic.style.setProperty("--c", x.color || "#5566F0");
+  ic.innerHTML = '<span class="ms">' + (x.icon || "medication") + "</span>";
+
+  const tx = document.createElement("div"); tx.className = "ag-tx";
+  const nm = document.createElement("span"); nm.className = "ag-name"; nm.textContent = x.name;
+  const meta = document.createElement("span"); meta.className = "ag-meta";
+  meta.textContent = [x.dose, x.slot].filter(Boolean).join(" · ");
+  tx.appendChild(nm); tx.appendChild(meta);
+
+  const tg = document.createElement("button");
+  tg.type = "button"; tg.className = "tg" + (taken ? " on" : "");
+  tg.setAttribute("role", "switch"); tg.setAttribute("aria-checked", taken ? "true" : "false");
+  tg.setAttribute("aria-label", x.name);
+  tg.onclick = () => {
+    const on = !state.rec.supps[x.id];
+    state.rec.supps[x.id] = on;
+    tg.classList.toggle("on", on);
+    tg.setAttribute("aria-checked", on ? "true" : "false");
+    ev.classList.toggle("done", on);
+    ev.classList.toggle("overdue", !on && past);
+    scheduleSave(); renderScore(); renderSuppCount();
+  };
+
+  ev.appendChild(ic); ev.appendChild(tx); ev.appendChild(tg);
+  return ev;
+}
+
+function agRow(timeLabel, items, past) {
+  const row = document.createElement("div");
+  row.className = "ag-row" + (past ? " ag-past" : "");
+  const tm = document.createElement("div"); tm.className = "ag-time"; tm.textContent = timeLabel;
+  const rail = document.createElement("div"); rail.className = "ag-rail";
+  const dot = document.createElement("span"); dot.className = "ag-dot"; dot.style.setProperty("--c", items[0].color || "#5566F0");
+  rail.appendChild(dot);
+  const evs = document.createElement("div"); evs.className = "ag-events";
+  items.forEach((x) => evs.appendChild(makeEvent(x, past)));
+  row.appendChild(tm); row.appendChild(rail); row.appendChild(evs);
+  return row;
+}
+
+function nowLine(min) {
+  const d = document.createElement("div"); d.className = "ag-now";
+  const t = document.createElement("div"); t.className = "ag-now-time"; t.textContent = fmtMin(min);
+  const l = document.createElement("div"); l.className = "ag-now-line";
+  d.appendChild(t); d.appendChild(l);
+  return d;
+}
+
 function renderChips() {
   const box = $("chips");
+  box.className = "agenda";
   box.innerHTML = "";
-  SUPPS.forEach((x) => {
-    const taken = !!state.rec.supps[x.id];
-    const row = document.createElement("div");
-    row.className = "row supp-row" + (x.weekly ? " supp-weekly" : "") + (taken ? " supp-on" : "");
 
-    const ic = document.createElement("span");
-    ic.className = "row-ic";
-    ic.style.setProperty("--c", x.color || "#5566F0");
-    ic.innerHTML = '<span class="ms">' + (x.icon || "medication") + "</span>";
+  const isToday = ymd(cursor) === ymd(today);
+  let nowMin = null;
+  if (isToday) { const n = new Date(); nowMin = n.getHours() * 60 + n.getMinutes(); }
 
-    const main = document.createElement("div");
-    main.className = "row-main";
-    const t = document.createElement("span"); t.className = "row-t"; t.textContent = x.name;
-    const s = document.createElement("span"); s.className = "row-s";
-    s.textContent = [x.dose, x.when].filter(Boolean).join(" · ");
-    main.appendChild(t); main.appendChild(s);
+  const timed = SUPPS.filter((x) => !x.weekly && tmin(x.time) != null).slice().sort((a, b) => tmin(a.time) - tmin(b.time));
+  const flex = SUPPS.filter((x) => !x.weekly && tmin(x.time) == null);
+  const weekly = SUPPS.filter((x) => x.weekly);
 
-    const tg = document.createElement("button");
-    tg.type = "button";
-    tg.className = "tg" + (taken ? " on" : "");
-    tg.setAttribute("role", "switch");
-    tg.setAttribute("aria-checked", taken ? "true" : "false");
-    tg.setAttribute("aria-label", x.name + (taken ? " (tomado)" : ""));
-    tg.onclick = () => {
-      state.rec.supps[x.id] = !state.rec.supps[x.id];
-      const on = state.rec.supps[x.id];
-      tg.classList.toggle("on", on);
-      tg.setAttribute("aria-checked", on ? "true" : "false");
-      row.classList.toggle("supp-on", on);
-      scheduleSave(); renderScore(); renderSuppCount();
-    };
-
-    row.appendChild(ic); row.appendChild(main); row.appendChild(tg);
-    box.appendChild(row);
+  // agrupar por franja horaria
+  const groups = [];
+  timed.forEach((x) => {
+    let g = groups[groups.length - 1];
+    if (!g || g.time !== x.time) { g = { time: x.time, min: tmin(x.time), items: [] }; groups.push(g); }
+    g.items.push(x);
   });
+
+  let nowDone = false;
+  groups.forEach((g) => {
+    if (isToday && !nowDone && g.min > nowMin) { box.appendChild(nowLine(nowMin)); nowDone = true; }
+    box.appendChild(agRow(g.time, g.items, isToday && g.min <= nowMin));
+  });
+  if (isToday && !nowDone && groups.length) { box.appendChild(nowLine(nowMin)); nowDone = true; }
+
+  if (flex.length) box.appendChild(agRow("—", flex, false));
+  if (weekly.length) box.appendChild(agRow("Dom", weekly, false));
+
   renderSuppCount();
 }
 
@@ -703,7 +755,7 @@ function renderSuppCount() {
   if (!el) return;
   const daily = SUPPS.filter((x) => !x.weekly);
   const taken = daily.filter((x) => state.rec.supps[x.id]).length;
-  el.textContent = taken + " / " + daily.length + " suplementos del día";
+  el.textContent = taken + " / " + daily.length + " suplementos del día tomados";
 }
 
 function renderScore() {
