@@ -38,7 +38,7 @@ export function isConfigured() {
 // Si lo dejas en "TODO_", la app usa los recordatorios locales (en el
 // dispositivo) y no intenta push por servidor.
 // ---------------------------------------------------------------------------
-export const VAPID_KEY = "TODO_VAPID_PUBLIC_KEY";
+export const VAPID_KEY = "BOQKhSQgz4SHI4Xehb58UbymEmmcqHsdHVC5fVcXaTvy0dsbBay2zbR73aaGorm_Gh-zecoGXCz_9vRfdwBbKJs";
 
 export function pushConfigured() {
   return isConfigured() && typeof VAPID_KEY === "string" && VAPID_KEY.indexOf("TODO_") !== 0 && VAPID_KEY.length > 20;
