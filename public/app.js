@@ -486,12 +486,14 @@ function currentRec() {
 
 let saveTimer = null;
 let pendingDate = null;
-let pendingRec = null;
+let pendingPatch = {};        // SOLO los campos que el usuario cambió desde el último flush
+let pendingPatchSupps = {};   // SOLO los suplementos cambiados
+// marca un campo/suplemento como "sucio" para escribir solo eso (no el doc entero)
+function mark(k) { pendingPatch[k] = state.rec[k]; }
+function markSupp(id) { pendingPatchSupps[id] = state.rec.supps[id]; }
+
 function scheduleSave() {
-  // captura una FOTO del día/registro actual: si navegas o cierras antes del
-  // debounce, se escribe el día correcto, no el que esté en cursor al disparar.
-  pendingDate = ymd(cursor);
-  pendingRec = normalize(state.rec);
+  pendingDate = ymd(cursor);   // el patch pertenece al día que se está editando
   setSync("saving");
   clearTimeout(saveTimer);
   saveTimer = setTimeout(flushSave, 600);
@@ -501,23 +503,30 @@ function flushPendingSave() {
   if (saveTimer !== null) { clearTimeout(saveTimer); saveTimer = null; flushSave(); }
 }
 async function flushSave() {
-  if (!pendingDate || !pendingRec) return;
   const date = pendingDate;
-  const rec = pendingRec;
-  // captura modo/usuario AHORA (síncrono): si el modo cambia durante el await,
-  // la escritura igual va al destino correcto y no hace null-deref de state.user.
-  const mode = state.mode;
-  const user = state.user;
+  const patch = pendingPatch;
+  const psupps = pendingPatchSupps;
+  // limpia el estado pendiente YA (síncrono) para no re-disparar / mezclar días
   saveTimer = null;
   pendingDate = null;
-  pendingRec = null;
-  // refleja en el cache local en memoria para que stats/gráfico se actualicen ya
+  pendingPatch = {};
+  pendingPatchSupps = {};
+  if (!date || (!Object.keys(patch).length && !Object.keys(psupps).length)) return;
+
+  const mode = state.mode;
+  const user = state.user;
+  // monta los cambios SOBRE la última versión remota conocida del día (no sobre
+  // una foto vieja): así nunca se pisan campos que el OTRO dispositivo tocó.
+  const rec = state.records[date] ? normalize(state.records[date]) : blank();
+  Object.keys(patch).forEach((k) => { rec[k] = patch[k]; });
+  Object.keys(psupps).forEach((id) => { rec.supps[id] = psupps[id]; });
   state.records[date] = normalize(rec);
   renderGlobal();
   if (mode === "cloud" && user) {
     try {
       const { fsMod, db } = await loadFirebase();
       const ref = fsMod.doc(db, "users", user.uid, "days", date);
+      // doc completo (las reglas exigen todos los campos) pero ya reconciliado
       await fsMod.setDoc(ref, { ...rec, updatedAt: fsMod.serverTimestamp() });
       flashSaved();
       setSync(state.online ? "synced" : "offline");
@@ -687,7 +696,7 @@ function makeEvent(x, past) {
     tg.setAttribute("aria-checked", on ? "true" : "false");
     ev.classList.toggle("done", on);
     ev.classList.toggle("overdue", !on && past);
-    scheduleSave(); renderScore(); renderSuppCount();
+    markSupp(x.id); scheduleSave(); renderScore(); renderSuppCount();
   };
 
   ev.appendChild(ic); ev.appendChild(tx); ev.appendChild(tg);
@@ -1088,7 +1097,7 @@ function bind() {
       state.rec[k] = !state.rec[k];
       el.classList.toggle("on");
       el.setAttribute("aria-checked", state.rec[k] ? "true" : "false");
-      scheduleSave(); renderScore();
+      mark(k); scheduleSave(); renderScore();
     };
   });
   document.querySelectorAll("[data-step]").forEach((b) => {
@@ -1096,19 +1105,19 @@ function bind() {
       const k = b.dataset.step, d = +b.dataset.d;
       state.rec[k] = Math.max(0, (Number(state.rec[k]) || 0) + d);
       $(k + "Val").textContent = state.rec[k];
-      scheduleSave(); renderScore();
+      mark(k); scheduleSave(); renderScore();
     };
   });
-  $("weight").oninput = function () { state.rec.weight = cleanNum(this.value); scheduleSave(); };
-  $("waist").oninput = function () { state.rec.waist = cleanNum(this.value); scheduleSave(); };
-  $("sleep").oninput = function () { state.rec.sleep = cleanNum(this.value); scheduleSave(); renderScore(); };
+  $("weight").oninput = function () { state.rec.weight = cleanNum(this.value); mark("weight"); scheduleSave(); };
+  $("waist").oninput = function () { state.rec.waist = cleanNum(this.value); mark("waist"); scheduleSave(); };
+  $("sleep").oninput = function () { state.rec.sleep = cleanNum(this.value); mark("sleep"); scheduleSave(); renderScore(); };
   $("gi").oninput = function () {
     state.rec.gi = Math.min(10, Math.max(0, Math.round(+this.value) || 0));
     $("giVal").textContent = state.rec.gi;
     this.setAttribute("aria-valuetext", state.rec.gi + " de 10");
-    scheduleSave();
+    mark("gi"); scheduleSave();
   };
-  $("notes").oninput = function () { state.rec.notes = this.value; scheduleSave(); };
+  $("notes").oninput = function () { state.rec.notes = this.value; mark("notes"); scheduleSave(); };
 
   // peso inicial / meta: solo persistir cuando hay un número finito (no pisar con default al borrar)
   $("startWeight").oninput = function () {
