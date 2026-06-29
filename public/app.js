@@ -248,15 +248,17 @@ function bindForegroundPush(fb) {
   if (push.bound || !push.msg || !fb.msgMod) return;
   push.bound = true;
   fb.msgMod.onMessage(push.msg, (payload) => {
-    const d = (payload && payload.data) || {};
+    // en primer plano el navegador NO despliega solo: lo mostramos nosotros.
+    const n = (payload && (payload.notification || payload.data)) || {};
+    const body = n.body || "";
     try {
       if ("Notification" in window && Notification.permission === "granted" && navigator.serviceWorker) {
-        navigator.serviceWorker.ready.then((reg) => reg.showNotification(d.title || "frody.body", {
-          body: d.body || "", icon: "icon-192.png", badge: "icon-192.png", tag: d.tag || "frody", data: { url: d.url || "./" }
+        navigator.serviceWorker.ready.then((reg) => reg.showNotification(n.title || "frody.body", {
+          body: body, icon: "icon-192.png", badge: "icon-192.png", tag: "frody", data: { url: "./" }
         })).catch(() => {});
       }
     } catch (e) {}
-    if (d.body) toast(d.body, "info");
+    if (body) toast(body, "info");
   });
 }
 

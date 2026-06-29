@@ -97,10 +97,12 @@ exports.sendReminders = onSchedule(
       const badTokens = new Set();
       for (const it of due) {
         const body = it.body || BODIES[it.id] || "Recordatorio frody.body";
+        // payload webpush.notification → el navegador lo MUESTRA solo en segundo
+        // plano (clave para iOS y para que llegue con la app cerrada).
         const res = await getMessaging().sendEachForMulticast({
           tokens,
-          data: { title: "frody.body", body, tag: "frody-" + it.id, url: APP_URL },
           webpush: {
+            notification: { title: "frody.body", body, icon: APP_URL + "/icon-192.png", badge: APP_URL + "/icon-192.png", tag: "frody-" + it.id },
             fcmOptions: { link: APP_URL },
             headers: { Urgency: "high", TTL: "3600" }
           }
@@ -151,8 +153,11 @@ exports.sendTestPush = onCall(async (req) => {
   }
   const res = await getMessaging().sendEachForMulticast({
     tokens,
-    data: { title: "frody.body", body: "✅ Notificación de prueba — ¡el push funciona!", tag: "frody-test", url: APP_URL },
-    webpush: { fcmOptions: { link: APP_URL }, headers: { Urgency: "high", TTL: "600" } }
+    webpush: {
+      notification: { title: "frody.body", body: "✅ Notificación de prueba — ¡el push funciona!", icon: APP_URL + "/icon-192.png", badge: APP_URL + "/icon-192.png", tag: "frody-test" },
+      fcmOptions: { link: APP_URL },
+      headers: { Urgency: "high", TTL: "600" }
+    }
   });
   // poda tokens muertos
   const bad = {};

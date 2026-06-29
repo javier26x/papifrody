@@ -44,6 +44,17 @@
   var TRIGGERS_OK = (typeof window !== "undefined") && (typeof window.TimestampTrigger !== "undefined") &&
     ("serviceWorker" in navigator) && ("Notification" in window);
 
+  // ---------- detección de plataforma (iOS necesita PWA instalada) ----------
+  var IS_IOS = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1); // iPadOS se hace pasar por Mac
+  function isStandalone() {
+    return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+      window.navigator.standalone === true;
+  }
+  // en iOS, el web push SOLO existe con la app instalada en la pantalla de inicio
+  function iosNeedsInstall() { return IS_IOS && !isStandalone(); }
+  function notifsAvailable() { return ("Notification" in window) && !iosNeedsInstall(); }
+
   // ---------- estado / persistencia ----------
   function defaults() {
     return { master: false, items: DEFAULTS.map(function (d) { return { id: d.id, time: d.time, enabled: false }; }) };
@@ -190,9 +201,13 @@
   }
 
   function permissionText() {
+    if (iosNeedsInstall()) return "en iPhone, instala la app primero (mira abajo)";
     if (!("Notification" in window)) return "tu navegador no soporta notificaciones";
-    if (Notification.permission === "denied") return "bloqueadas en el navegador · actívalas en ajustes del sitio";
-    if (Notification.permission === "granted") return cfg.master ? "activadas" : "permitidas · activa el interruptor";
+    if (Notification.permission === "denied") return "bloqueadas · actívalas en ajustes del sitio";
+    if (Notification.permission === "granted") {
+      if (!cfg.master) return "permitidas · activa el interruptor";
+      return pushOn() ? "activas · llegan con la app cerrada" : "activas · solo con la app abierta";
+    }
     return "toca para permitir notificaciones";
   }
 
@@ -200,6 +215,20 @@
     var box = document.getElementById("remindersBox");
     if (!box) return;
     box.innerHTML = "";
+
+    // iPhone sin instalar: el web push NO existe en Safari pestaña. Guía clara.
+    if (iosNeedsInstall()) {
+      var ios = document.createElement("div");
+      ios.className = "rem-ios";
+      ios.innerHTML =
+        '<b>📱 En iPhone: instala la app para recibir notificaciones</b>' +
+        '<ol><li>Toca <b>Compartir</b> (el cuadrito con la flecha ↑) en Safari.</li>' +
+        '<li>Elige <b>“Agregar a inicio”</b>.</li>' +
+        '<li>Abre frody.body <b>desde el ícono</b> nuevo.</li>' +
+        '<li>Ahí entra a Ajustes → Recordatorios y activa <b>Notificaciones</b>.</li></ol>' +
+        '<span>Safari no entrega avisos en segundo plano; solo la app instalada (iOS 16.4+).</span>';
+      box.appendChild(ios);
+    }
 
     // fila maestra
     var master = document.createElement("div");
@@ -209,6 +238,7 @@
       '<div class="row-main"><span class="row-t">Notificaciones</span><span class="row-s" id="remPerm"></span></div>';
     var mtg = toggleBtn(cfg.master, "Activar notificaciones", async function (btn) {
       if (!cfg.master) {
+        if (iosNeedsInstall()) { render(); return; }   // en iPhone hay que instalar primero
         var st = await ensurePermission();
         if (st !== "granted") { cfg.master = false; render(); return; }
         cfg.master = true;
@@ -266,19 +296,32 @@
     // nota honesta sobre la entrega
     var note = document.createElement("div");
     note.className = "rem-note";
-    if (pushAvail()) {
-      note.textContent = pushOn()
-        ? "Push del servidor activo: los avisos llegan con la app cerrada en cualquier dispositivo (en iPhone, instala la app en la pantalla de inicio)."
-        : "Push del servidor disponible: activa Notificaciones para recibir los avisos con la app cerrada.";
+    if (iosNeedsInstall()) {
+      note.textContent = "Mientras uses Safari sin instalar, los avisos NO llegan con la app cerrada (limitación de Apple).";
+    } else if (pushOn()) {
+      note.textContent = "Push del servidor activo: los avisos llegan aunque cierres la app.";
+    } else if (pushAvail()) {
+      note.textContent = "Activa Notificaciones para recibir los avisos con la app cerrada (push del servidor).";
     } else {
       note.textContent = TRIGGERS_OK
-        ? "Programadas en tu dispositivo: llegan aunque cierres la app. Instálala para que no se borren."
-        : "Tu navegador (p. ej. iPhone) solo entrega los avisos con la app abierta. Para recibirlos cerrada, ábrela en Android/Chrome o instálala.";
+        ? "Programadas en tu dispositivo: llegan aunque cierres la app."
+        : "Tu navegador solo entrega los avisos con la app abierta.";
     }
     box.appendChild(note);
 
-    var perm = document.getElementById("remPerm");
-    if (perm) perm.textContent = permissionText();
+    // diagnóstico (para saber por qué no llegan): plataforma · instalada · permiso · push
+    var diag = document.createElement("div");
+    diag.className = "rem-diag";
+    var perm = ("Notification" in window) ? Notification.permission : "no-soportado";
+    diag.textContent = "estado · " +
+      (IS_IOS ? "iOS" : "navegador") + " · " +
+      (isStandalone() ? "instalada" : "sin instalar") + " · permiso: " + perm +
+      " · push servidor: " + (pushOn() ? "activo ✓" : (pushAvail() ? "disponible" : "no")) +
+      (pushOn() ? "" : " · modo local (solo app abierta)");
+    box.appendChild(diag);
+
+    var permEl = document.getElementById("remPerm");
+    if (permEl) permEl.textContent = permissionText();
   }
 
   // ---------- init ----------

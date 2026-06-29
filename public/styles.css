@@ -366,6 +366,12 @@ body.locked .savetag{display:none !important}
 .rem-test:hover{opacity:.92}
 .rem-test:disabled{opacity:.6;cursor:default}
 .rem-note{font-family:var(--mono);font-size:10.5px;color:var(--faint);line-height:1.6;padding:13px 4px 5px}
+.rem-ios{background:color-mix(in srgb,var(--accent) 9%,transparent);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);border-radius:12px;padding:12px 14px;margin-bottom:10px;font-size:12.5px;line-height:1.5;color:var(--ink)}
+.rem-ios b{color:var(--ink)}
+.rem-ios ol{margin:8px 0 6px;padding-left:20px}
+.rem-ios li{margin:3px 0}
+.rem-ios span{display:block;margin-top:6px;font-family:var(--mono);font-size:10.5px;color:var(--sec)}
+.rem-diag{font-family:var(--mono);font-size:10px;color:var(--faint);padding:2px 4px 6px;word-break:break-word}
 
 /* controles nativos (selector de hora, etc.) siguen el tema */
 html[data-theme="light"]{color-scheme:light}
