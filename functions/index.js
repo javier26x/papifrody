@@ -27,11 +27,10 @@ const ALLOWED_EMAIL = "javier.neo@gmail.com";
 // respaldo por si un item llega sin 'body' (el cliente normalmente lo manda)
 const BODIES = {
   weigh: "Pésate al despertar y registra el peso 📉",
-  ashwa: "Ashwagandha KSM-66 450 mg — abre tu ventana de comida 🧘",
-  lunch: "Con el almuerzo: Omega 3, Creatina, Whey y Zinc (si toca) 💊 (Psyllium 15 min antes)",
+  tareg: "Tareg D en ayuno — antes de comer nada 💊",
+  lunch: "Almuerzo: Ashwagandha, Omega 3, Creatina, Whey y Zinc (si toca) 💊 (Psyllium 15 min antes)",
   water: "Hora de agua + electrolitos 💧",
-  omega: "Omega 3 con la comida (con grasa) 🐟",
-  mag: "Magnesio bisglicinato 168 mg 🌙",
+  omega: "Cena (con grasa): Omega 3 + Magnesio 🐟🌙",
   inject: "Hoy es día de inyección · Mounjaro 5 mg 💉",
   weekly: "Domingo: Bonal D (gotas, con comida) + Neurobión (inyección) 📅",
   log: "¿Ya registraste tu día en frody.body? ✍️"

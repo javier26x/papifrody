@@ -24,15 +24,15 @@ const FB_CDN = "https://www.gstatic.com/firebasejs/" + FB_VERSION;
 const DEFAULT_PROFILE = { startWeight: 132.9, goal: 100 };
 
 const SUPPS = [
-  { id: "tareg",    name: "Tareg D",           dose: "160/12.5",          time: "08:00", slot: "Fármaco diario",       icon: "cardiology",        color: "#dd6a56" },
-  { id: "ashwa",    name: "Ashwagandha",       dose: "450 mg · 1 cáp",    time: "10:00", slot: "Abre la ventana de comida", icon: "spa",          color: "#8b5cf6" },
+  { id: "tareg",    name: "Tareg D",           dose: "160/12.5",          time: "07:00", slot: "En ayuno · fármaco",    icon: "cardiology",        color: "#dd6a56" },
   { id: "psyllium", name: "Psyllium",          dose: "5 g (1 cdita)",     time: "13:15", slot: "15 min antes de comer", icon: "grass",             color: "#23a56a" },
+  { id: "ashwa",    name: "Ashwagandha",       dose: "450 mg · 1 cáp",    time: "13:30", slot: "Almuerzo",              icon: "spa",               color: "#8b5cf6" },
   { id: "omega1",   name: "Omega 3",           dose: "1.200 mg · 1 cáp",  time: "13:30", slot: "Almuerzo · con grasa",  icon: "set_meal",          color: "#e0922a" },
+  { id: "creatina", name: "Creatina",          dose: "5 g (1 cdita)",     time: "13:30", slot: "Almuerzo · en el whey", icon: "fitness_center",    color: "#ef6b53" },
+  { id: "whey",     name: "Whey",              dose: "1–2 scoops",        time: "13:30", slot: "Almuerzo · cerrar proteína", icon: "blender",      color: "#5566F0" },
   { id: "zinc",     name: "Zinc Picolinato",   dose: "50 mg · 1 cáp",     time: "13:30", slot: "Almuerzo · 3 días sí/4 no", icon: "medication",    color: "#2bb7d9", optional: true },
-  { id: "whey",     name: "Whey",              dose: "1–2 scoops",        time: "13:30", slot: "Cerrar proteína",       icon: "blender",           color: "#5566F0" },
   { id: "omega2",   name: "Omega 3",           dose: "1.200 mg · 1 cáp",  time: "17:30", slot: "Cena · con grasa",      icon: "set_meal",          color: "#e0922a" },
-  { id: "mag",      name: "Magnesio Bisglic.", dose: "168 mg · 2 cáps",   time: "21:00", slot: "Noche",                 icon: "bedtime",           color: "#6f7df6" },
-  { id: "creatina", name: "Creatina",          dose: "5 g (1 cdita)",     time: "13:30", slot: "Cualquier hora",        icon: "fitness_center",    color: "#ef6b53" },
+  { id: "mag",      name: "Magnesio Bisglic.", dose: "168 mg · 2 cáps",   time: "17:30", slot: "Cena",                  icon: "bedtime",           color: "#6f7df6" },
   { id: "bonald",   name: "Bonal D (gotas)",   dose: "carga ×3",          time: "13:30", slot: "Domingo 13:30 · con comida", icon: "medication_liquid", color: "#1ea8a0", weekly: true },
   { id: "neuro",    name: "Neurobión",         dose: "inyección · ×3",    time: "",      slot: "Domingo",               icon: "vaccines",          color: "#a855f7", weekly: true }
 ];

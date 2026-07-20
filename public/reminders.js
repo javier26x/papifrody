@@ -17,22 +17,20 @@
   // catálogo de recordatorios (alineado con el stack real)
   var DEFAULTS = [
     { id: "weigh",  label: "Pesaje al despertar",    icon: "monitor_weight", color: "#5566F0", time: "07:30", days: "daily" },
-    { id: "ashwa",  label: "Ashwagandha",            icon: "medication",     color: "#8b5cf6", time: "10:00", days: "daily" },
-    { id: "lunch",  label: "Suplementos · almuerzo", icon: "restaurant",     color: "#23a56a", time: "13:30", days: "daily" },
+    { id: "tareg",  label: "Tareg D · en ayuno",     icon: "cardiology",     color: "#dd6a56", time: "07:00", days: "daily" },
+    { id: "lunch",  label: "Almuerzo · suplementos", icon: "restaurant",     color: "#23a56a", time: "13:30", days: "daily" },
     { id: "water",  label: "Agua + electrolitos",    icon: "water_drop",     color: "#2bb7d9", time: "15:00", days: "daily" },
-    { id: "omega",  label: "Omega 3 · cena",         icon: "set_meal",       color: "#e0922a", time: "17:30", days: "daily" },
-    { id: "mag",    label: "Magnesio",               icon: "bedtime",        color: "#6f7df6", time: "21:00", days: "daily" },
+    { id: "omega",  label: "Cena · Omega + Mag",     icon: "set_meal",       color: "#e0922a", time: "17:30", days: "daily" },
     { id: "inject", label: "Inyección Mounjaro",     icon: "vaccines",       color: "#ef6b53", time: "09:00", days: "mon"   },
     { id: "weekly", label: "Bonal D + Neurobión",    icon: "event",          color: "#1ea8a0", time: "13:30", days: "sun"   },
     { id: "log",    label: "Registrar el día",       icon: "edit_note",      color: "#9aa0ac", time: "21:30", days: "daily" }
   ];
   var BODIES = {
     weigh:  "Pésate al despertar y registra el peso 📉",
-    ashwa:  "Ashwagandha KSM-66 450 mg — abre tu ventana de comida 🧘",
-    lunch:  "Con el almuerzo: Omega 3, Creatina, Whey y Zinc (si toca) 💊 (Psyllium 15 min antes)",
+    tareg:  "Tareg D en ayuno — antes de comer nada 💊",
+    lunch:  "Almuerzo: Ashwagandha, Omega 3, Creatina, Whey y Zinc (si toca) 💊 (Psyllium 15 min antes)",
     water:  "Hora de agua + electrolitos 💧",
-    omega:  "Omega 3 con la comida (con grasa) 🐟",
-    mag:    "Magnesio bisglicinato 168 mg 🌙",
+    omega:  "Cena (con grasa): Omega 3 + Magnesio 🐟🌙",
     inject: "Hoy es día de inyección · Mounjaro 5 mg 💉",
     weekly: "Domingo: Bonal D (gotas, con comida) + Neurobión (inyección) 📅",
     log:    "¿Ya registraste tu día en frody.body? ✍️"
