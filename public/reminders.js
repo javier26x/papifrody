@@ -82,7 +82,33 @@
   }
   function isTouched() { try { return localStorage.getItem(KEY) !== null; } catch (e) { return false; } }
   var cfg = load();
+  var lastServerRun = 0; // heartbeat del cron (ms) para detectar si el servidor murió
   function save() { try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch (e) {} }
+
+  // salud del servidor: minutos desde la última corrida del cron (o -1 si no hay dato)
+  function serverStaleMins() {
+    if (!lastServerRun) return -1;
+    return Math.round((Date.now() - lastServerRun) / 60000);
+  }
+  // próximo recordatorio habilitado de HOY (para mostrarlo)
+  function nextReminderLabel() {
+    var now = new Date(), nowMin = now.getHours() * 60 + now.getMinutes(), dow = now.getDay();
+    var best = null;
+    cfg.items.forEach(function (it) {
+      if (!it.enabled) return;
+      var m = meta(it.id);
+      if (m && m.days !== "daily" && DAYNUM[m.days] !== undefined && dow !== DAYNUM[m.days]) return;
+      var p = /^(\d{1,2}):(\d{2})$/.exec(it.time || ""); if (!p) return;
+      var t = (+p[1]) * 60 + (+p[2]);
+      if (t >= nowMin && (best === null || t < best.t)) best = { t: t, time: it.time };
+    });
+    return best ? best.time : null;
+  }
+  async function refreshHealth() {
+    if (!window.frodyPush || !window.frodyPush.readConfig) return;
+    var remote = await window.frodyPush.readConfig();
+    if (remote && typeof remote.lastServerRun === "number") lastServerRun = remote.lastServerRun;
+  }
   function meta(id) { for (var i = 0; i < DEFAULTS.length; i++) if (DEFAULTS[i].id === id) return DEFAULTS[i]; return null; }
 
   function loadFired() { try { return JSON.parse(localStorage.getItem(FIRED_KEY)) || {}; } catch (e) { return {}; } }
@@ -330,15 +356,25 @@
     }
     box.appendChild(note);
 
-    // diagnóstico (para saber por qué no llegan): plataforma · instalada · permiso · push
+    // diagnóstico: plataforma · instalada · permiso · push · salud del servidor · próximo
     var diag = document.createElement("div");
     diag.className = "rem-diag";
     var perm = ("Notification" in window) ? Notification.permission : "no-soportado";
-    diag.textContent = "estado · " +
-      (IS_IOS ? "iOS" : "navegador") + " · " +
+    var line = "estado · " + (IS_IOS ? "iOS" : "navegador") + " · " +
       (isStandalone() ? "instalada" : "sin instalar") + " · permiso: " + perm +
-      " · push servidor: " + (pushOn() ? "activo ✓" : (pushAvail() ? "disponible" : "no")) +
-      (pushOn() ? "" : " · modo local (solo app abierta)");
+      " · push servidor: " + (pushOn() ? "activo ✓" : (pushAvail() ? "disponible" : "no"));
+    if (pushOn()) {
+      var stale = serverStaleMins();
+      if (stale < 0) line += " · servidor: —";
+      else if (stale > 15) line += " · ⚠️ servidor sin correr hace " + stale + " min (revisa deploy/billing)";
+      else line += " · servidor ok";
+      var nx = nextReminderLabel();
+      if (nx) line += " · próximo: " + nx;
+    } else {
+      line += " · modo local (solo app abierta)";
+    }
+    diag.textContent = line;
+    if (pushOn() && serverStaleMins() > 15) diag.classList.add("rem-diag-warn");
     box.appendChild(diag);
 
     var permEl = document.getElementById("remPerm");
@@ -351,24 +387,27 @@
     // primer plano: revisa cada 30 s (solo hace algo si no hay push ni triggers)
     setInterval(tick, 30 * 1000);
     tick();
-    // refresca la ventana de programación al volver a la app
-    document.addEventListener("visibilitychange", function () {
-      if (document.visibilityState === "visible") { scheduleTriggers(); tick(); render(); }
+    // al volver a la app: refresca ventana local, RE-REGISTRA el token push (para
+    // que no caduque en silencio) y re-lee la salud del servidor.
+    document.addEventListener("visibilitychange", async function () {
+      if (document.visibilityState !== "visible") return;
+      scheduleTriggers(); tick();
+      if (cfg.master && pushAvail() && window.frodyPush) {
+        try { await window.frodyPush.enable(); } catch (e) {}      // refresca token
+        try { await refreshHealth(); } catch (e) {}
+      }
+      render();
     });
     // cuando app.js entra en modo nube: NO pisar la config del servidor.
-    // - si este dispositivo nunca tocó los recordatorios (config virgen) y el
-    //   servidor ya tiene una config, la ADOPTAMOS (no subimos nada). Así abrir
-    //   la app en el PC ya no apaga el push que configuraste en el teléfono.
-    // - si este dispositivo tiene config propia, la subimos (acción previa del
-    //   usuario aquí).
+    // - config virgen en este dispositivo → ADOPTAMOS la del servidor (no subimos).
+    // - config propia → la subimos.
+    // Siempre leemos para conocer lastServerRun (salud del cron).
     window.addEventListener("frody-push-ready", async function () {
       try {
-        if (!isTouched() && window.frodyPush && window.frodyPush.readConfig) {
-          var remote = await window.frodyPush.readConfig();
-          if (remote) adoptRemote(remote);
-        } else if (isTouched()) {
-          cloudSync();
-        }
+        var remote = (window.frodyPush && window.frodyPush.readConfig) ? await window.frodyPush.readConfig() : null;
+        if (remote && typeof remote.lastServerRun === "number") lastServerRun = remote.lastServerRun;
+        if (!isTouched() && remote && remote.items) adoptRemote(remote);
+        else if (isTouched()) cloudSync();
       } catch (e) { console.warn("reminders sync:", e); }
       if (cfg.master && pushAvail()) { try { await window.frodyPush.enable(); } catch (e) {} }
       render();

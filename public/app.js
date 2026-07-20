@@ -244,6 +244,7 @@ async function enablePush() {
     return true;
   } catch (e) {
     console.warn("enablePush:", e);
+    window.frodyPush.active = false;
     try { localStorage.removeItem("frody:push-active"); } catch (e2) {}
     return false;
   }
@@ -255,11 +256,12 @@ function bindForegroundPush(fb) {
   fb.msgMod.onMessage(push.msg, (payload) => {
     // en primer plano el navegador NO despliega solo: lo mostramos nosotros.
     const n = (payload && (payload.notification || payload.data)) || {};
+    const id = (payload && payload.data && payload.data.id) || "";
     const body = n.body || "";
     try {
       if ("Notification" in window && Notification.permission === "granted" && navigator.serviceWorker) {
         navigator.serviceWorker.ready.then((reg) => reg.showNotification(n.title || "frody.body", {
-          body: body, icon: "icon-192.png", badge: "icon-192.png", tag: "frody", data: { url: "./" }
+          body: body, icon: "icon-192.png", badge: "icon-192.png", tag: id ? "frody-" + id : "frody", data: { url: "./" }
         })).catch(() => {});
       }
     } catch (e) {}
@@ -292,8 +294,11 @@ async function readPushConfig() {
     const snap = await fb.fsMod.getDoc(fb.fsMod.doc(fb.db, "users", state.user.uid, "meta", "reminders"));
     if (!snap.exists()) return null;
     const d = snap.data() || {};
-    if (!Array.isArray(d.items)) return null;
-    return { master: !!d.master, items: d.items.map((it) => ({ id: it.id, time: it.time, enabled: !!it.enabled })) };
+    return {
+      master: !!d.master,
+      items: Array.isArray(d.items) ? d.items.map((it) => ({ id: it.id, time: it.time, enabled: !!it.enabled })) : null,
+      lastServerRun: typeof d.lastServerRun === "number" ? d.lastServerRun : 0
+    };
   } catch (e) { console.warn("readPushConfig:", e); return null; }
 }
 

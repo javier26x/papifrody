@@ -36,6 +36,8 @@ const BODIES = {
   log: "¿Ya registraste tu día en frody.body? ✍️"
 };
 const DOW_CODE = { sun: "Sun", mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat" };
+// avisos importantes (salud): quedan fijos en pantalla hasta que los descartes
+const IMPORTANT = new Set(["inject", "tareg", "weekly"]);
 
 // hora/fecha/día-de-semana locales en la zona horaria del usuario
 function localParts(date, tz) {
@@ -70,67 +72,74 @@ exports.sendReminders = onSchedule(
 
     for (const doc of snap.docs) {
       if (doc.id !== "reminders") continue; // collectionGroup trae también meta/profile
-      const data = doc.data() || {};
-      if (!data.master) continue;
-      const tokens = Object.keys(data.tokens || {});
-      if (!tokens.length) continue;
+      // aislamiento: un usuario/doc con datos malos NO debe tumbar toda la corrida
+      try {
+        const data = doc.data() || {};
+        if (!data.master) continue;
+        usersChecked++;
+        const tokens = Object.keys(data.tokens || {});
+        const { minutes: nowMin, dateStr, weekday } = localParts(now, data.tz);
+        const sentToday = (data.sent && data.sent[dateStr]) || {};
+        const due = [];
 
-      usersChecked++;
-      const { minutes: nowMin, dateStr, weekday } = localParts(now, data.tz);
-      const sentToday = (data.sent && data.sent[dateStr]) || {};
-      const due = [];
+        if (tokens.length) {
+          (data.items || []).forEach((it) => {
+            if (!it || !it.enabled) return;
+            if (it.days && it.days !== "daily" && DOW_CODE[it.days] && weekday !== DOW_CODE[it.days]) return;
+            if (sentToday[it.id]) return;
+            const m = /^(\d{1,2}):(\d{2})$/.exec(it.time || "");
+            if (!m) return;
+            const sched = (parseInt(m[1], 10) % 24) * 60 + parseInt(m[2], 10);
+            const diff = nowMin - sched;
+            // ventana de 30 min: si una corrida se atrasa/falla, la siguiente igual
+            // lo alcanza; el dedupe 'sent' evita duplicados.
+            if (diff >= 0 && diff < 30) due.push(it);
+          });
+        }
 
-      (data.items || []).forEach((it) => {
-        if (!it || !it.enabled) return;
-        if (it.days && it.days !== "daily" && DOW_CODE[it.days] && weekday !== DOW_CODE[it.days]) return;
-        if (sentToday[it.id]) return;
-        const m = /^(\d{1,2}):(\d{2})$/.exec(it.time || "");
-        if (!m) return;
-        const sched = (parseInt(m[1], 10) % 24) * 60 + parseInt(m[2], 10);
-        const diff = nowMin - sched;
-        // ventana de 30 min: si una corrida del cron se atrasa/falla, la siguiente
-        // igual lo alcanza; el dedupe 'sent' evita duplicados.
-        if (diff >= 0 && diff < 30) due.push(it);
-      });
-
-      if (!due.length) continue;
-
-      const badTokens = new Set();
-      for (const it of due) {
-        const body = it.body || BODIES[it.id] || "Recordatorio frody.body";
-        // payload webpush.notification → el navegador lo MUESTRA solo en segundo
-        // plano (clave para iOS y para que llegue con la app cerrada).
-        const res = await getMessaging().sendEachForMulticast({
-          tokens,
-          webpush: {
-            notification: { title: "frody.body", body, icon: APP_URL + "/icon-192.png", badge: APP_URL + "/icon-192.png", tag: "frody-" + it.id },
-            fcmOptions: { link: APP_URL },
-            headers: { Urgency: "high", TTL: "3600" }
-          }
-        });
-        pushed += res.successCount;
-        res.responses.forEach((r, i) => {
-          if (!r.success) {
-            const code = r.error && r.error.code;
-            if (code === "messaging/registration-token-not-registered" ||
-                code === "messaging/invalid-argument" ||
-                code === "messaging/invalid-registration-token") {
-              badTokens.add(tokens[i]);
+        const badTokens = new Set();
+        for (const it of due) {
+          const body = it.body || BODIES[it.id] || "Recordatorio frody.body";
+          const res = await getMessaging().sendEachForMulticast({
+            tokens,
+            data: { id: it.id }, // para dedupe por-id en primer plano
+            webpush: {
+              notification: {
+                title: "frody.body", body,
+                icon: APP_URL + "/icon-192.png", badge: APP_URL + "/icon-192.png",
+                tag: "frody-" + it.id,
+                requireInteraction: IMPORTANT.has(it.id) // avisos clave quedan fijos hasta descartarlos
+              },
+              fcmOptions: { link: APP_URL },
+              headers: { Urgency: "high", TTL: "10800" } // 3 h: llega aunque estés offline un rato
             }
-          }
-        });
-      }
+          });
+          pushed += res.successCount;
+          res.responses.forEach((r, i) => {
+            if (!r.success) {
+              const code = r.error && r.error.code;
+              if (code === "messaging/registration-token-not-registered" ||
+                  code === "messaging/invalid-argument" ||
+                  code === "messaging/invalid-registration-token") {
+                badTokens.add(tokens[i]);
+              }
+            }
+          });
+        }
 
-      // marca enviados de hoy (reemplaza 'sent' → descarta días anteriores) y
-      // limpia tokens muertos. update() reemplaza el campo entero (no fusiona).
-      const todaySent = Object.assign({}, sentToday);
-      due.forEach((it) => { todaySent[it.id] = true; });
-      const update = { sent: { [dateStr]: todaySent } };
-      if (badTokens.size) {
-        update.tokens = Object.assign({}, data.tokens);
-        badTokens.forEach((t) => { delete update.tokens[t]; });
+        // heartbeat + enviados de hoy + limpieza de tokens muertos (SIEMPRE que
+        // master=true, aunque no haya due: así el cliente sabe que el cron vive).
+        const todaySent = Object.assign({}, sentToday);
+        due.forEach((it) => { todaySent[it.id] = true; });
+        const update = { lastServerRun: Date.now(), sent: { [dateStr]: todaySent } };
+        if (badTokens.size) {
+          update.tokens = Object.assign({}, data.tokens);
+          badTokens.forEach((t) => { delete update.tokens[t]; });
+        }
+        await doc.ref.update(update);
+      } catch (e) {
+        logger.error("sendReminders user loop:", e);
       }
-      await doc.ref.update(update);
     }
 
     logger.info(`sendReminders: ${usersChecked} usuario(s), ${pushed} push enviados`);
