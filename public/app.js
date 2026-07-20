@@ -239,9 +239,14 @@ async function enablePush() {
       { merge: true }
     );
     window.frodyPush.active = true;
+    try { localStorage.setItem("frody:push-active", "1"); } catch (e) {} // recuerda entre sesiones (evita duplicado local al abrir)
     bindForegroundPush(fb);
     return true;
-  } catch (e) { console.warn("enablePush:", e); return false; }
+  } catch (e) {
+    console.warn("enablePush:", e);
+    try { localStorage.removeItem("frody:push-active"); } catch (e2) {}
+    return false;
+  }
 }
 
 function bindForegroundPush(fb) {
@@ -278,6 +283,20 @@ async function syncPushConfig(cfg) {
   } catch (e) { console.warn("syncPushConfig:", e); }
 }
 
+// lee la config de recordatorios del servidor (para que un dispositivo nuevo
+// adopte lo configurado en otro, en vez de pisarlo).
+async function readPushConfig() {
+  if (state.mode !== "cloud" || !state.user) return null;
+  try {
+    const fb = await loadFirebase();
+    const snap = await fb.fsMod.getDoc(fb.fsMod.doc(fb.db, "users", state.user.uid, "meta", "reminders"));
+    if (!snap.exists()) return null;
+    const d = snap.data() || {};
+    if (!Array.isArray(d.items)) return null;
+    return { master: !!d.master, items: d.items.map((it) => ({ id: it.id, time: it.time, enabled: !!it.enabled })) };
+  } catch (e) { console.warn("readPushConfig:", e); return null; }
+}
+
 // envía una notificación de prueba a demanda (llama a la Cloud Function)
 async function testPush() {
   if (state.mode !== "cloud" || !state.user) { toast("Inicia sesión primero", "err"); return false; }
@@ -303,6 +322,7 @@ window.frodyPush = {
   available: function () { return pushConfigured(); },
   enable: enablePush,
   syncConfig: syncPushConfig,
+  readConfig: readPushConfig,
   test: testPush
 };
 
@@ -1160,15 +1180,20 @@ function bind() {
     renderGlobal();
   });
 
-  // chequeo de medianoche por si la pestaña queda abierta y visible cruzándola
-  setInterval(rolloverDay, 60 * 1000);
+  // cada minuto: chequeo de medianoche + refresco de la agenda (línea de "ahora"
+  // y estados vencido/pendiente no quedan congelados)
+  setInterval(() => {
+    rolloverDay();
+    if (ymd(cursor) === ymd(today) && !document.hidden) renderChips();
+  }, 60 * 1000);
 }
 
 function rolloverDay() {
   const t = new Date(); t.setHours(0, 0, 0, 0);
   if (ymd(t) !== ymd(today)) {
+    flushPendingSave();                 // no mezclar el parche pendiente en el día nuevo
     today = t;
-    if (ymd(cursor) > ymd(today)) cursor = new Date(today);
+    if (ymd(cursor) > ymd(today)) { cursor = new Date(today); state.rec = currentRec(); }
     renderAll();
   }
 }

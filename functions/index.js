@@ -28,12 +28,12 @@ const ALLOWED_EMAIL = "javier.neo@gmail.com";
 const BODIES = {
   weigh: "Pésate al despertar y registra el peso 📉",
   ashwa: "Ashwagandha KSM-66 450 mg — abre tu ventana de comida 🧘",
-  lunch: "Con el almuerzo: Omega 3, Zinc, Whey y Vit D3 💊 (Psyllium 15 min antes)",
+  lunch: "Con el almuerzo: Omega 3, Creatina, Whey y Zinc (si toca) 💊 (Psyllium 15 min antes)",
   water: "Hora de agua + electrolitos 💧",
-  omega: "Omega 3 con la cena (con grasa) 🐟",
+  omega: "Omega 3 con la comida (con grasa) 🐟",
   mag: "Magnesio bisglicinato 168 mg 🌙",
   inject: "Hoy es día de inyección · Mounjaro 5 mg 💉",
-  weekly: "Domingo: Bonal D (gotas) + Neurobión (inyección) 📅",
+  weekly: "Domingo: Bonal D (gotas, con comida) + Neurobión (inyección) 📅",
   log: "¿Ya registraste tu día en frody.body? ✍️"
 };
 const DOW_CODE = { sun: "Sun", mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat" };
@@ -63,7 +63,7 @@ function localParts(date, tz) {
 }
 
 exports.sendReminders = onSchedule(
-  { schedule: "every 5 minutes", timeZone: "Etc/UTC", retryCount: 0 },
+  { schedule: "every 5 minutes", timeZone: "Etc/UTC", retryCount: 2 },
   async () => {
     const now = new Date();
     const snap = await db.collectionGroup("meta").get();
@@ -89,7 +89,9 @@ exports.sendReminders = onSchedule(
         if (!m) return;
         const sched = (parseInt(m[1], 10) % 24) * 60 + parseInt(m[2], 10);
         const diff = nowMin - sched;
-        if (diff >= 0 && diff < 5) due.push(it); // vencido en esta ventana de 5 min
+        // ventana de 30 min: si una corrida del cron se atrasa/falla, la siguiente
+        // igual lo alcanza; el dedupe 'sent' evita duplicados.
+        if (diff >= 0 && diff < 30) due.push(it);
       });
 
       if (!due.length) continue;

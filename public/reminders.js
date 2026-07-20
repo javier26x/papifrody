@@ -20,21 +20,21 @@
     { id: "ashwa",  label: "Ashwagandha",            icon: "medication",     color: "#8b5cf6", time: "10:00", days: "daily" },
     { id: "lunch",  label: "Suplementos · almuerzo", icon: "restaurant",     color: "#23a56a", time: "13:30", days: "daily" },
     { id: "water",  label: "Agua + electrolitos",    icon: "water_drop",     color: "#2bb7d9", time: "15:00", days: "daily" },
-    { id: "omega",  label: "Omega 3 · cena",         icon: "set_meal",       color: "#e0922a", time: "20:30", days: "daily" },
+    { id: "omega",  label: "Omega 3 · cena",         icon: "set_meal",       color: "#e0922a", time: "17:30", days: "daily" },
     { id: "mag",    label: "Magnesio",               icon: "bedtime",        color: "#6f7df6", time: "21:00", days: "daily" },
     { id: "inject", label: "Inyección Mounjaro",     icon: "vaccines",       color: "#ef6b53", time: "09:00", days: "mon"   },
-    { id: "weekly", label: "Bonal D + Neurobión",    icon: "event",          color: "#1ea8a0", time: "11:00", days: "sun"   },
+    { id: "weekly", label: "Bonal D + Neurobión",    icon: "event",          color: "#1ea8a0", time: "13:30", days: "sun"   },
     { id: "log",    label: "Registrar el día",       icon: "edit_note",      color: "#9aa0ac", time: "21:30", days: "daily" }
   ];
   var BODIES = {
     weigh:  "Pésate al despertar y registra el peso 📉",
     ashwa:  "Ashwagandha KSM-66 450 mg — abre tu ventana de comida 🧘",
-    lunch:  "Con el almuerzo: Omega 3, Zinc, Whey y Vit D3 💊 (Psyllium 15 min antes)",
+    lunch:  "Con el almuerzo: Omega 3, Creatina, Whey y Zinc (si toca) 💊 (Psyllium 15 min antes)",
     water:  "Hora de agua + electrolitos 💧",
-    omega:  "Omega 3 con la cena (con grasa) 🐟",
+    omega:  "Omega 3 con la comida (con grasa) 🐟",
     mag:    "Magnesio bisglicinato 168 mg 🌙",
     inject: "Hoy es día de inyección · Mounjaro 5 mg 💉",
-    weekly: "Domingo: Bonal D (gotas) + Neurobión (inyección) 📅",
+    weekly: "Domingo: Bonal D (gotas, con comida) + Neurobión (inyección) 📅",
     log:    "¿Ya registraste tu día en frody.body? ✍️"
   };
   // mapeo de día → número/nombre (soporta cualquier día de la semana)
@@ -59,6 +59,9 @@
   function defaults() {
     return { master: false, items: DEFAULTS.map(function (d) { return { id: d.id, time: d.time, enabled: false }; }) };
   }
+  // horas default VIEJAS: si el usuario nunca las cambió (siguen igual al viejo
+  // default), migramos al nuevo default en vez de dejar la hora obsoleta.
+  var LEGACY_TIMES = { omega: "20:30", weekly: "11:00" };
   function load() {
     try {
       var raw = localStorage.getItem(KEY);
@@ -70,13 +73,16 @@
           master: !!s.master,
           items: DEFAULTS.map(function (d) {
             var saved = byId[d.id] || {};
-            return { id: d.id, time: saved.time || d.time, enabled: !!saved.enabled };
+            var t = saved.time;
+            if (!t || t === LEGACY_TIMES[d.id]) t = d.time; // migra las horas obsoletas
+            return { id: d.id, time: t, enabled: !!saved.enabled };
           })
         };
       }
     } catch (e) {}
     return defaults();
   }
+  function isTouched() { try { return localStorage.getItem(KEY) !== null; } catch (e) { return false; } }
   var cfg = load();
   function save() { try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch (e) {} }
   function meta(id) { for (var i = 0; i < DEFAULTS.length; i++) if (DEFAULTS[i].id === id) return DEFAULTS[i]; return null; }
@@ -165,7 +171,12 @@
   }
 
   // ---------- puente con el push del servidor (app.js / Cloud Functions) ----------
-  function pushOn() { return !!(window.frodyPush && window.frodyPush.active); }
+  // considera también la flag persistida: al abrir la app, evita que el tick local
+  // dispare un duplicado antes de que enablePush() vuelva a poner active=true.
+  function pushOn() {
+    if (window.frodyPush && window.frodyPush.active) return true;
+    try { return localStorage.getItem("frody:push-active") === "1"; } catch (e) { return false; }
+  }
   function pushAvail() { return !!(window.frodyPush && window.frodyPush.available && window.frodyPush.available()); }
   function cloudSync() {
     if (!window.frodyPush || !window.frodyPush.syncConfig) return;
@@ -176,6 +187,18 @@
         return { id: it.id, time: it.time, enabled: it.enabled, days: (m && m.days) || "daily", body: BODIES[it.id] || "" };
       })
     });
+  }
+
+  // adopta la config del servidor en este dispositivo (sin subir nada)
+  function adoptRemote(remote) {
+    cfg.master = !!remote.master;
+    var byId = {};
+    (remote.items || []).forEach(function (x) { byId[x.id] = x; });
+    cfg.items.forEach(function (it) {
+      var r = byId[it.id];
+      if (r) { if (r.time) it.time = r.time; it.enabled = !!r.enabled; }
+    });
+    save(); render();
   }
 
   // guarda local, sube la config al servidor y, SOLO si el push del servidor no
@@ -334,9 +357,21 @@
     document.addEventListener("visibilitychange", function () {
       if (document.visibilityState === "visible") { scheduleTriggers(); tick(); render(); }
     });
-    // cuando app.js entra en modo nube: sube la config y registra el token push
+    // cuando app.js entra en modo nube: NO pisar la config del servidor.
+    // - si este dispositivo nunca tocó los recordatorios (config virgen) y el
+    //   servidor ya tiene una config, la ADOPTAMOS (no subimos nada). Así abrir
+    //   la app en el PC ya no apaga el push que configuraste en el teléfono.
+    // - si este dispositivo tiene config propia, la subimos (acción previa del
+    //   usuario aquí).
     window.addEventListener("frody-push-ready", async function () {
-      cloudSync();
+      try {
+        if (!isTouched() && window.frodyPush && window.frodyPush.readConfig) {
+          var remote = await window.frodyPush.readConfig();
+          if (remote) adoptRemote(remote);
+        } else if (isTouched()) {
+          cloudSync();
+        }
+      } catch (e) { console.warn("reminders sync:", e); }
       if (cfg.master && pushAvail()) { try { await window.frodyPush.enable(); } catch (e) {} }
       render();
     });
