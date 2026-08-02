@@ -18,7 +18,8 @@ const { getFirestore } = require("firebase-admin/firestore");
 const { getMessaging } = require("firebase-admin/messaging");
 
 initializeApp();
-setGlobalOptions({ region: "us-central1", maxInstances: 3 });
+// Topes explícitos de costo: aunque algo se dispare, no puede escalar solo.
+setGlobalOptions({ region: "us-central1", maxInstances: 3, memory: "256MiB", timeoutSeconds: 120 });
 
 const db = getFirestore();
 const APP_URL = "https://papifrody.web.app";
@@ -63,8 +64,11 @@ function localParts(date, tz) {
   };
 }
 
+// Cron alineado a :00/:15/:30/:45. Todos los recordatorios caen en :00 o :30,
+// así que la puntualidad es la misma que con "cada 5 min" pero con 1/3 de las
+// corridas (menos invocaciones, lecturas y escrituras = más margen gratis).
 exports.sendReminders = onSchedule(
-  { schedule: "every 5 minutes", timeZone: "Etc/UTC", retryCount: 2 },
+  { schedule: "0,15,30,45 * * * *", timeZone: "Etc/UTC", retryCount: 2 },
   async () => {
     const now = new Date();
     const snap = await db.collectionGroup("meta").get();
@@ -91,9 +95,9 @@ exports.sendReminders = onSchedule(
             if (!m) return;
             const sched = (parseInt(m[1], 10) % 24) * 60 + parseInt(m[2], 10);
             const diff = nowMin - sched;
-            // ventana de 30 min: si una corrida se atrasa/falla, la siguiente igual
-            // lo alcanza; el dedupe 'sent' evita duplicados.
-            if (diff >= 0 && diff < 30) due.push(it);
+            // ventana de 40 min: aguanta DOS corridas fallidas seguidas (cron cada
+            // 15 min) y aun así el recordatorio sale; 'sent' evita duplicados.
+            if (diff >= 0 && diff < 40) due.push(it);
           });
         }
 

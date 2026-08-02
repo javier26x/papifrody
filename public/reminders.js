@@ -83,6 +83,9 @@
   function isTouched() { try { return localStorage.getItem(KEY) !== null; } catch (e) { return false; } }
   var cfg = load();
   var lastServerRun = 0; // heartbeat del cron (ms) para detectar si el servidor murió
+  // El cron corre cada 15 min; avisamos recién tras ~3 corridas perdidas para no
+  // dar falsas alarmas por un atraso puntual de Cloud Scheduler.
+  var STALE_MIN = 40;
   function save() { try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch (e) {} }
 
   // salud del servidor: minutos desde la última corrida del cron (o -1 si no hay dato)
@@ -366,7 +369,7 @@
     if (pushOn()) {
       var stale = serverStaleMins();
       if (stale < 0) line += " · servidor: —";
-      else if (stale > 15) line += " · ⚠️ servidor sin correr hace " + stale + " min (revisa deploy/billing)";
+      else if (stale > STALE_MIN) line += " · ⚠️ servidor sin correr hace " + stale + " min (revisa deploy/billing)";
       else line += " · servidor ok";
       var nx = nextReminderLabel();
       if (nx) line += " · próximo: " + nx;
@@ -374,7 +377,7 @@
       line += " · modo local (solo app abierta)";
     }
     diag.textContent = line;
-    if (pushOn() && serverStaleMins() > 15) diag.classList.add("rem-diag-warn");
+    if (pushOn() && serverStaleMins() > STALE_MIN) diag.classList.add("rem-diag-warn");
     box.appendChild(diag);
 
     var permEl = document.getElementById("remPerm");
