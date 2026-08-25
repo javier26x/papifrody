@@ -6,7 +6,7 @@
 // Las peticiones a Firebase / Google / fuentes / CDN (otro origen) pasan
 // directo a la red y NO se interceptan.
 
-const CACHE = "frodybody-v8";
+const CACHE = "frodybody-v9";
 const SHELL = [
   "./",
   "./index.html",

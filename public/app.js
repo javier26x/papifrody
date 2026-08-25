@@ -21,20 +21,108 @@ const PREFIX = "frodybody:";
 const PROFILE_KEY = "frodybody:profile";
 const FB_VERSION = "10.12.2";
 const FB_CDN = "https://www.gstatic.com/firebasejs/" + FB_VERSION;
-const DEFAULT_PROFILE = { startWeight: 132.9, goal: 100 };
+const DEFAULT_PROFILE = { startWeight: 132.9, goal: 100, doneVitD: false, doneControl: false };
+const CRIT_KEYS = ["doneVitD", "doneControl"];
 
-const SUPPS = [
-  { id: "tareg",    name: "Tareg D",           dose: "160/12.5",          time: "07:00", slot: "En ayuno · fármaco",    icon: "cardiology",        color: "#dd6a56" },
-  { id: "psyllium", name: "Psyllium",          dose: "5 g (1 cdita)",     time: "13:15", slot: "15 min antes de comer", icon: "grass",             color: "#23a56a" },
-  { id: "ashwa",    name: "Ashwagandha",       dose: "450 mg · 1 cáp",    time: "13:30", slot: "Almuerzo",              icon: "spa",               color: "#8b5cf6" },
-  { id: "omega1",   name: "Omega 3",           dose: "1.200 mg · 1 cáp",  time: "13:30", slot: "Almuerzo · con grasa",  icon: "set_meal",          color: "#e0922a" },
-  { id: "creatina", name: "Creatina",          dose: "5 g (1 cdita)",     time: "13:30", slot: "Almuerzo · en el whey", icon: "fitness_center",    color: "#ef6b53" },
-  { id: "whey",     name: "Whey",              dose: "1–2 scoops",        time: "13:30", slot: "Almuerzo · cerrar proteína", icon: "blender",      color: "#5566F0" },
-  { id: "zinc",     name: "Zinc Picolinato",   dose: "50 mg · 1 cáp",     time: "13:30", slot: "Almuerzo · 3 días sí/4 no", icon: "medication",    color: "#2bb7d9", optional: true },
-  { id: "omega2",   name: "Omega 3",           dose: "1.200 mg · 1 cáp",  time: "17:30", slot: "Cena · con grasa",      icon: "set_meal",          color: "#e0922a" },
-  { id: "mag",      name: "Magnesio Bisglic.", dose: "168 mg · 2 cáps",   time: "17:30", slot: "Cena",                  icon: "bedtime",           color: "#6f7df6" },
-  { id: "bonald",   name: "Bonal D (gotas)",   dose: "carga ×3",          time: "13:30", slot: "Domingo 13:30 · con comida", icon: "medication_liquid", color: "#1ea8a0", weekly: true },
-  { id: "neuro",    name: "Neurobión",         dose: "inyección · ×3",    time: "",      slot: "Domingo",               icon: "vaccines",          color: "#a855f7", weekly: true }
+// =============================================================================
+// SISTEMA v9.2 — el día en 3 modos metabólicos
+// Cada pieza está puesta donde su mecanismo rinde más. 'why' es el porqué: se
+// despliega al tocar el ítem, para cuando dudes de algo a las 3 semanas.
+//   kind "supp"   → cuenta en el contador de suplementos
+//   kind "action" → ritual/protocolo (también se marca, no cuenta como supl.)
+//   optional      → ciclado (Zinc): no exige marcarlo
+//   paused        → congelado a la espera de la doctora
+// =============================================================================
+const MODES = {
+  burn: {
+    tag: "modo 1 · 07:30 – 10:00", name: "🔥 Quema", color: "#F2A93B",
+    why: "En ayuno la insulina está en su punto más bajo del día: la grasa fluye y se oxida. Todo lo de esta franja existe para aprovechar o alargar ese estado."
+  },
+  build: {
+    tag: "modo 2 · 10:00 – 18:00", name: "🏗️ Construcción", color: "#5BC08A",
+    why: "La ventana. Ya no es quemar: es meter nutrientes sin disparar la insulina y sin pasar hambre después. Acá se fabrica la saciedad del día y se protege el músculo."
+  },
+  repair: {
+    tag: "modo 3 · 18:00 – 23:00", name: "🌙 Reparación", color: "#7C83DB",
+    why: "Se prepara la máquina que trabaja mientras duermes: la hormona de crecimiento nocturna preserva músculo y moviliza grasa. Esta franja decide el hambre de mañana."
+  }
+};
+
+const PLAN = [
+  // ---------------------------- 🔥 QUEMA ----------------------------
+  { id: "aguaAM", mode: "burn", kind: "action", time: "07:30", name: "500 ml de agua", dose: "500 ml", slot: "lo primero",
+    icon: "local_drink", color: "#2bb7d9",
+    why: "Vienes de 8+ h sin líquido. La sed de la mañana se disfraza de hambre y de fatiga — rehidratar primero ordena las señales del día." },
+  { id: "sol", mode: "burn", kind: "action", time: "07:30", name: "Sol en los ojos", dose: "5 min", slot: "ventana, balcón o vereda",
+    icon: "wb_sunny", color: "#F2A93B",
+    why: "Es una inversión a 15 horas: la luz matinal fija el reloj circadiano y programa que la melatonina suba sola cerca de las 23:00. Sin sol AM la noche se corre, y con ella la grelina y la leptina de mañana. El sol de la mañana es la primera pieza del sueño de la noche." },
+  { id: "cafe", mode: "burn", kind: "action", time: "07:30", name: "Café o té verde", dose: "ventana óptima", slot: "corte 13:00",
+    icon: "coffee", color: "#8b5cf6",
+    why: "La cafeína (+ catequinas del té verde) moviliza grasa, pero la insulina alta bloquea que se queme. En ayuno la insulina está en el piso: la grasa liberada sí se oxida. Después de las 13:00 juega en contra — vida media de 6 h, roba sueño profundo y eso es más hambre mañana. Un té a las 16:00 literalmente te da más hambre al día siguiente." },
+  { id: "movAM", mode: "burn", kind: "action", time: "07:30", name: "Moverse en ayunas", dose: "caminar", slot: "pasillo, escaleras, lo que haya",
+    icon: "directions_walk", color: "#23a56a",
+    why: "La grasa que la cafeína movilizó se usa si te mueves. Cafeína + ayuno + movimiento es la única pila de tres piezas con sinergia real. Cuando vuelva la bici en primavera, este bloque se potencia solo." },
+  { id: "creatina", mode: "burn", kind: "supp", time: "07:30", name: "Creatina", dose: "5 g", slot: "la excepción horaria",
+    icon: "fitness_center", color: "#ef6b53",
+    why: "Funciona por saturación crónica, no por timing: la hora da lo mismo, lo que mata su efecto es saltársela. Va en la mañana solo para no olvidarla. Aviso: puede subir 0,5–1 kg de agua intramuscular las primeras semanas — no es grasa, no te asustes en la pesa." },
+  { id: "tareg", mode: "burn", kind: "supp", time: "08:00", name: "Tareg D 160/12.5", dose: "1 comp", slot: "diario · permanente",
+    icon: "cardiology", color: "#dd6a56",
+    why: "La presión controlada es prevención directa de infarto y derrame: vale más que todo el stack de suplementos junto. Pendiente con la doctora: ajuste del diurético ahora sin fármaco." },
+
+  // ------------------------ 🏗️ CONSTRUCCIÓN ------------------------
+  { id: "ventana", mode: "build", kind: "action", time: "10:00", name: "Abrir ventana · proteína primero", dose: "porción moderada", slot: "no el plato fuerte",
+    icon: "restaurant", color: "#5BC08A",
+    why: "Proteína primero dispara GLP-1 y PYY, las mismas hormonas de saciedad que imitaba el Mounjaro, gratis. Y gasta 25–30% de sus propias calorías en digerirse (el carbo solo 5–10%). Moderada porque una comida gigante tras 16 h de ayuno dispara el reflujo: el plato fuerte va a las 13:30." },
+  { id: "ashwa", mode: "build", kind: "supp", time: "10:00", name: "Ashwagandha KSM-66", dose: "450 mg · 1 cáp", slot: "antes del peak laboral",
+    icon: "spa", color: "#8b5cf6",
+    why: "Amortigua el pico de cortisol de la jornada laboral que viene. Cortisol crónico alto = grasa visceral + antojos de carbo, y el estrés del trabajo es tu gatillo de colapso documentado. Vigilar: si la fatiga persiste, es la primera a pausar." },
+  { id: "cafeFin", mode: "build", kind: "action", time: "13:00", name: "Última cafeína", dose: "frontera", slot: "corte duro",
+    icon: "no_drinks", color: "#dd6a56",
+    why: "Es la frontera entre el modo Quema y el modo Reparación de la noche. Todo lo que tomes después de esta hora se lo cobras al sueño profundo — y el sueño profundo regula el hambre de mañana." },
+  { id: "psyllium", mode: "build", kind: "supp", time: "13:15", name: "Psyllium + vaso grande", dose: "5 g", slot: "15 min ANTES de comer",
+    icon: "grass", color: "#23a56a",
+    why: "Forma un gel que estira el estómago (saciedad mecánica: llegas a comer con medio trabajo hecho) y ralentiza la glucosa de ESA comida. Tomado suelto a las 16:00 pierde las dos funciones. Es tu pieza más parecida al efecto del fármaco. Separado 1–2 h de los remedios." },
+  { id: "almuerzo", mode: "build", kind: "action", time: "13:30", name: "Almuerzo · 30–40 g proteína", dose: "+ verde en volumen", slot: "orden: verde → proteína → carbo",
+    icon: "lunch_dining", color: "#5BC08A",
+    why: "30–40 g es la dosis que satura la síntesis muscular: 80 g de una no rinde el doble, repartir gana. El orden importa — la fibra primero hace de barrera física; el mismo plato comido al revés genera hasta un tercio más de pico de glucosa. Cero costo, puro orden." },
+  { id: "omega1", mode: "build", kind: "supp", time: "13:30", name: "Omega 3 (1ª)", dose: "1.200 mg", slot: "con grasa",
+    icon: "set_meal", color: "#e0922a",
+    why: "Liposoluble: con grasa se absorbe 2–3× más. El rol oculto del omega: tu inflamación (PCR, ferritina) bloquea la señal de la leptina — el cerebro deja de 'ver' la grasa que tienes y sigue pidiendo comida. Bajar inflamación = recuperar el termostato de saciedad." },
+  { id: "zinc", mode: "build", kind: "supp", time: "13:30", name: "Zinc Picolinato", dose: "50 mg", slot: "3 días sí / 4 no",
+    icon: "medication", color: "#2bb7d9", optional: true,
+    why: "Apoya la testosterona (267, piso del rango) sin vaciar el cobre. Ciclado porque a diario lo agota en meses. La testo sube sola al bajar grasa: esto solo acompaña." },
+  { id: "vitd", mode: "build", kind: "supp", time: "13:30", name: "Vit D3 Swanson", dose: "5.000 UI", slot: "⚠ congelada · pendiente doctora",
+    icon: "wb_twilight", color: "#9aa0ac", paused: true,
+    why: "Subir tu D de 23,5 a 40–60 (insulina, testosterona, ánimo). CONGELADA hasta confirmar con la Dra. Arancibia que la carga de Bonal D terminó y que ella aprueba la mantención. No la retomes por tu cuenta." },
+  { id: "caminata", mode: "build", kind: "action", time: "14:00", name: "Caminata post-almuerzo", dose: "10–15 min", slot: "ventana: 30–60 min tras comer",
+    icon: "directions_walk", color: "#23a56a",
+    why: "El músculo en movimiento capta glucosa SIN necesitar insulina (transportadores GLUT4). Es atacar tu HOMA 4.0 por una puerta lateral que no depende del páncreas. Caminar a las 17:00 por el almuerzo de las 13:30 ya no hace ese trabajo: la glucosa sube en los primeros 30–60 min. El hack más rentable de todo el sistema." },
+  { id: "whey", mode: "build", kind: "supp", time: "", name: "Whey si falta proteína", dose: "1–2 scoops", slot: "tarde · cerrar la brecha",
+    icon: "blender", color: "#5566F0",
+    why: "Herramienta, no comida. Si a media tarde vas corto para los 160–180 g, un scoop cierra la brecha sin cocinar. La comida real sigue siendo la base (80% de tu proteína)." },
+  { id: "cena", mode: "build", kind: "action", time: "17:30", name: "Cena liviana proteica", dose: "temprano", slot: "última comida",
+    icon: "dinner_dining", color: "#5BC08A",
+    why: "Crononutrición: tu sensibilidad a la insulina cae en la noche — la misma comida a las 21:00 genera más glucosa e insulina que a las 13:00. Comer temprano no es disciplina, es aprovechar que el cuerpo procesa mejor de día. Y liviano protege contra el reflujo nocturno." },
+  { id: "omega2", mode: "build", kind: "supp", time: "17:30", name: "Omega 3 (2ª)", dose: "1.200 mg", slot: "con grasa",
+    icon: "set_meal", color: "#e0922a",
+    why: "Segunda dosis del día. Objetivo: bajar triglicéridos (158) e inflamación. Repartir en dos tomas con comida mejora la absorción frente a una sola dosis grande." },
+  { id: "cierre", mode: "build", kind: "action", time: "18:00", name: "CIERRE · lávate los dientes", dose: "cocina cerrada", slot: "el corte del día",
+    icon: "dentistry", color: "#F2A93B",
+    why: "Señal conductual física de 'cocina cerrada'. El sabor a menta + el ritual cortan el picoteo automático de la noche, tu franja de mayor riesgo. Suena tonto; funciona porque no depende de voluntad, depende de hábito." },
+
+  // ------------------------- 🌙 REPARACIÓN -------------------------
+  { id: "liquidos", mode: "repair", kind: "action", time: "18:00", name: "Solo líquidos", dose: "agua · jengibre · manzanilla", slot: "emergencia: 1 huevo o whey",
+    icon: "emoji_food_beverage", color: "#4FB3A6",
+    why: "Jengibre y no cualquier té: es procinético, acelera el vaciamiento del estómago — justo lo contrario de la menta, que relaja el esfínter y empeora la acidez. Es TU té de la noche: anti-acidez, sin cafeína y con evidencia real." },
+  { id: "mag", mode: "repair", kind: "supp", time: "21:00", name: "Magnesio Bisglicinato", dose: "168 mg · 2 cáps", slot: "el freno del sistema nervioso",
+    icon: "bedtime", color: "#6f7df6",
+    why: "Potencia el GABA para entrar a sueño profundo. El dato clave: la hormona de crecimiento — que preserva músculo y moviliza grasa nocturna — se libera casi toda en el sueño profundo de la PRIMERA mitad de la noche. Acostarse a las 23:00 no es igual que dormir 8 h desde la 1: esa ventana de GH se pierde y no se recupera. Si suelta el estómago, bajar a 1 cáp." },
+  { id: "pantallas", mode: "repair", kind: "action", time: "22:00", name: "Pantallas fuera · luz cálida", dose: "sin azul", slot: "gaming antes de las 21:00 o no va",
+    icon: "phonelink_off", color: "#7C83DB",
+    why: "La luz azul frena la melatonina que el sol de las 7:30 programó: son los dos extremos del mismo circuito. Y el gaming competitivo suma cortisol justo cuando el cuerpo necesita bajarlo. No es castigo: es que la partida de las 22:30 se paga en grelina mañana." },
+  { id: "cama", mode: "repair", kind: "action", time: "22:30", name: "A la cama · pieza 17–19 °C", dose: "dormido 23:00", slot: "8,5 h hasta las 07:30",
+    icon: "hotel", color: "#5566F0",
+    why: "Doble función del frío: activa algo de grasa parda (gasto extra) y, más importante, la caída de temperatura corporal es la señal fisiológica de entrada al sueño profundo. Pieza fría = te duermes más rápido y más profundo." }
 ];
 const TOGGLES = ["injected", "sunAM", "bike", "strength", "cleanFood", "noLiquidSugar", "stressOK"];
 const DAY_FIELDS = ["weight", "waist", "injected", "gi", "protein", "water", "sleep",
@@ -68,7 +156,7 @@ const state = {
 // =============================================================================
 function blank() {
   const s = {};
-  SUPPS.forEach((x) => { s[x.id] = false; });
+  PLAN.forEach((x) => { s[x.id] = false; });
   return {
     weight: "", waist: "", injected: false, gi: 0, protein: 0, water: 0, sleep: "",
     sunAM: false, bike: false, strength: false, cleanFood: false,
@@ -122,13 +210,24 @@ function stripForCompare(r) {
 // =============================================================================
 // score
 // =============================================================================
+// Score v9.2: mide el sistema, no la fuerza de voluntad.
+// Nota: la bici vuelve en primavera — hasta entonces "moverse en ayunas" cumple
+// esa casilla, para que el 100% sea alcanzable hoy y no una meta imposible.
 function scoreOf(r) {
+  const s = r.supps || {};
   const checks = [
-    (Number(r.protein) || 0) >= 150,
+    (Number(r.protein) || 0) >= 160,                   // meta 160–180 g
     (Number(r.water) || 0) >= 8,
     (parseFloat(r.sleep) || 0) >= 7,
-    r.sunAM, r.bike, r.strength, r.cleanFood, r.noLiquidSugar, r.stressOK,
-    (!!r.supps && r.supps.creatina && r.supps.mag && (r.supps.omega1 || r.supps.omega2))
+    !!(r.sunAM || s.sol),                              // luz matinal → melatonina de la noche
+    !!(r.bike || s.movAM),                             // movimiento en ayunas (bici cuando vuelva)
+    !!r.strength,
+    !!r.cleanFood,
+    !!r.noLiquidSugar,
+    !!r.stressOK,
+    !!(s.creatina && s.mag && (s.omega1 || s.omega2)), // suplementos clave del día
+    !!s.caminata,                                      // el hack más rentable del sistema
+    !!s.cierre                                         // cocina cerrada 18:00
   ];
   const done = checks.filter(Boolean).length;
   return { done, total: checks.length };
@@ -178,6 +277,7 @@ function sanitizeProfile(p) {
   if (p && typeof p === "object") {
     if (isFinite(p.startWeight)) out.startWeight = Number(p.startWeight);
     if (isFinite(p.goal)) out.goal = Number(p.goal);
+    CRIT_KEYS.forEach((k) => { out[k] = !!p[k]; });
   }
   return out;
 }
@@ -659,6 +759,32 @@ function renderAll() {
   renderGlobal();
   renderAuthUI();
   renderBanner();
+  renderCrit();
+}
+
+// acciones críticas del Sistema: se pueden marcar resueltas y viaja al perfil,
+// así queda igual en el teléfono y en el PC.
+function renderCrit() {
+  CRIT_KEYS.forEach((k) => {
+    const btn = document.querySelector('[data-crit="' + k + '"]');
+    if (!btn) return;
+    const card = btn.closest(".crit");
+    const done = !!state.profile[k];
+    if (card) card.classList.toggle("done", done);
+    btn.textContent = done ? "✓ Resuelto · reabrir" : "Marcar como resuelto";
+  });
+}
+
+function bindCrit() {
+  CRIT_KEYS.forEach((k) => {
+    const btn = document.querySelector('[data-crit="' + k + '"]');
+    if (!btn) return;
+    btn.addEventListener("click", () => {
+      state.profile[k] = !state.profile[k];
+      scheduleProfileSave();
+      renderCrit();
+    });
+  });
 }
 
 function renderDate() {
@@ -696,21 +822,51 @@ function renderRec() {
 function tmin(hhmm) { const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm || ""); return m ? (+m[1]) * 60 + (+m[2]) : null; }
 function fmtMin(m) { return String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0"); }
 
+// cabecera de un modo metabólico (con su porqué siempre visible)
+function modeHead(key, m) {
+  const h = document.createElement("div");
+  h.className = "ag-mode ag-mode-" + key;
+  h.style.setProperty("--c", m.color);
+  const tag = document.createElement("div"); tag.className = "ag-mode-tag"; tag.textContent = m.tag;
+  const nm = document.createElement("div"); nm.className = "ag-mode-name"; nm.textContent = m.name;
+  const why = document.createElement("div"); why.className = "ag-mode-why"; why.textContent = m.why;
+  h.appendChild(tag); h.appendChild(nm); h.appendChild(why);
+  return h;
+}
+
 function makeEvent(x, past) {
   const taken = !!state.rec.supps[x.id];
+  const wrap = document.createElement("div");
+  wrap.className = "ag-item";
+
   const ev = document.createElement("div");
-  ev.className = "ag-ev" + (taken ? " done" : (past ? " overdue" : ""));
+  ev.className = "ag-ev" + (taken ? " done" : (past ? " overdue" : "")) + (x.paused ? " paused" : "");
   ev.style.setProperty("--c", x.color || "#5566F0");
 
   const ic = document.createElement("span");
   ic.className = "ag-ic"; ic.style.setProperty("--c", x.color || "#5566F0");
   ic.innerHTML = '<span class="ms">' + (x.icon || "medication") + "</span>";
 
-  const tx = document.createElement("div"); tx.className = "ag-tx";
+  // zona de texto = botón que despliega el porqué
+  const tx = document.createElement("button");
+  tx.type = "button"; tx.className = "ag-tx";
+  tx.setAttribute("aria-expanded", "false");
   const nm = document.createElement("span"); nm.className = "ag-name"; nm.textContent = x.name;
+  if (x.optional) nm.appendChild(badge("ciclado"));
+  if (x.paused) nm.appendChild(badge("congelada", "warn"));
   const meta = document.createElement("span"); meta.className = "ag-meta";
   meta.textContent = [x.dose, x.slot].filter(Boolean).join(" · ");
   tx.appendChild(nm); tx.appendChild(meta);
+
+  const why = document.createElement("div");
+  why.className = "ag-why"; why.hidden = true;
+  why.innerHTML = '<i>→ por qué:</i> ' + escapeHtml(x.why || "");
+  tx.onclick = () => {
+    const open = why.hidden;
+    why.hidden = !open;
+    tx.setAttribute("aria-expanded", open ? "true" : "false");
+    ev.classList.toggle("open", open);
+  };
 
   const tg = document.createElement("button");
   tg.type = "button"; tg.className = "tg" + (taken ? " on" : "");
@@ -727,7 +883,18 @@ function makeEvent(x, past) {
   };
 
   ev.appendChild(ic); ev.appendChild(tx); ev.appendChild(tg);
-  return ev;
+  wrap.appendChild(ev); wrap.appendChild(why);
+  return wrap;
+}
+
+function badge(text, kind) {
+  const b = document.createElement("span");
+  b.className = "ag-badge" + (kind ? " ag-badge-" + kind : "");
+  b.textContent = text;
+  return b;
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
 function agRow(timeLabel, items, past) {
@@ -760,27 +927,32 @@ function renderChips() {
   let nowMin = null;
   if (isToday) { const n = new Date(); nowMin = n.getHours() * 60 + n.getMinutes(); }
 
-  const timed = SUPPS.filter((x) => !x.weekly && tmin(x.time) != null).slice().sort((a, b) => tmin(a.time) - tmin(b.time));
-  const flex = SUPPS.filter((x) => !x.weekly && tmin(x.time) == null);
-  const weekly = SUPPS.filter((x) => x.weekly);
-
-  // agrupar por franja horaria
-  const groups = [];
-  timed.forEach((x) => {
-    let g = groups[groups.length - 1];
-    if (!g || g.time !== x.time) { g = { time: x.time, min: tmin(x.time), items: [] }; groups.push(g); }
-    g.items.push(x);
-  });
-
+  // recorre los 3 modos en orden; dentro de cada modo agrupa por hora
   let nowDone = false;
-  groups.forEach((g) => {
-    if (isToday && !nowDone && g.min > nowMin) { box.appendChild(nowLine(nowMin)); nowDone = true; }
-    box.appendChild(agRow(g.time, g.items, isToday && g.min <= nowMin));
-  });
-  if (isToday && !nowDone && groups.length) { box.appendChild(nowLine(nowMin)); nowDone = true; }
+  ["burn", "build", "repair"].forEach((mk) => {
+    const m = MODES[mk];
+    const mine = PLAN.filter((x) => x.mode === mk);
+    if (!mine.length) return;
 
-  if (flex.length) box.appendChild(agRow("—", flex, false));
-  if (weekly.length) box.appendChild(agRow("Dom", weekly, false));
+    box.appendChild(modeHead(mk, m));
+
+    const timed = mine.filter((x) => tmin(x.time) != null).slice().sort((a, b) => tmin(a.time) - tmin(b.time));
+    const flex = mine.filter((x) => tmin(x.time) == null);
+
+    const groups = [];
+    timed.forEach((x) => {
+      let g = groups[groups.length - 1];
+      if (!g || g.time !== x.time) { g = { time: x.time, min: tmin(x.time), items: [] }; groups.push(g); }
+      g.items.push(x);
+    });
+
+    groups.forEach((g) => {
+      if (isToday && !nowDone && g.min > nowMin) { box.appendChild(nowLine(nowMin)); nowDone = true; }
+      box.appendChild(agRow(g.time, g.items, isToday && g.min <= nowMin));
+    });
+    if (flex.length) box.appendChild(agRow("—", flex, false));
+  });
+  if (isToday && !nowDone) box.appendChild(nowLine(nowMin));
 
   renderSuppCount();
 }
@@ -788,12 +960,13 @@ function renderChips() {
 function renderSuppCount() {
   const el = $("suppCount");
   if (!el) return;
-  // cuenta solo los obligatorios: excluye los opcionales/ciclados (Zinc) y los
-  // semanales (Bonal D, Neurobión) salvo que sea domingo
-  const isSunday = cursor.getDay() === 0;
-  const items = SUPPS.filter((x) => !x.optional && (!x.weekly || isSunday));
-  const taken = items.filter((x) => state.rec.supps[x.id]).length;
-  el.textContent = taken + " / " + items.length + " suplementos " + (isSunday ? "de hoy" : "del día") + " tomados";
+  // dos cuentas separadas: suplementos obligatorios (excluye el Zinc ciclado y
+  // la Vit D congelada) y acciones del protocolo (rituales del día)
+  const supps = PLAN.filter((x) => x.kind === "supp" && !x.optional && !x.paused);
+  const acts = PLAN.filter((x) => x.kind === "action");
+  const st = supps.filter((x) => state.rec.supps[x.id]).length;
+  const at = acts.filter((x) => state.rec.supps[x.id]).length;
+  el.textContent = st + " / " + supps.length + " suplementos · " + at + " / " + acts.length + " acciones del protocolo";
 }
 
 function renderScore() {
@@ -1047,7 +1220,7 @@ function flatten() {
       fuerza: b.strength ? "sí" : "", comida_limpia: b.cleanFood ? "sí" : "", sin_azucar_liq: b.noLiquidSugar ? "sí" : "",
       estres_ok: b.stressOK ? "sí" : "", score_pct: Math.round((sc.done / sc.total) * 100), notas: b.notes
     };
-    SUPPS.forEach((x) => { row["sup_" + x.id] = b.supps[x.id] ? "sí" : ""; });
+    PLAN.forEach((x) => { row["sup_" + x.id] = b.supps[x.id] ? "sí" : ""; });
     return row;
   });
 }
@@ -1160,6 +1333,8 @@ function bind() {
   $("expJson").onclick = exportJson;
   $("impJson").onclick = () => $("impFile").click();
   $("impFile").onchange = function () { if (this.files && this.files[0]) importJson(this.files[0]); this.value = ""; };
+
+  bindCrit();
 
   $("gateSignIn").onclick = signIn;
   $("signInBtn").onclick = signIn;

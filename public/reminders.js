@@ -14,27 +14,51 @@
   var KEY = "frody:reminders";
   var FIRED_KEY = "frody:reminders:fired";
 
-  // catálogo de recordatorios (alineado con el stack real)
+  // Catálogo v9.2 — sigue los 3 modos metabólicos del sistema.
+  // TODAS las horas caen en :00/:15/:30/:45 a propósito: el cron del servidor
+  // corre en esas marcas, así que el retraso de entrega es 0 min.
   var DEFAULTS = [
-    { id: "weigh",  label: "Pesaje al despertar",    icon: "monitor_weight", color: "#5566F0", time: "07:30", days: "daily" },
-    { id: "tareg",  label: "Tareg D · en ayuno",     icon: "cardiology",     color: "#dd6a56", time: "07:00", days: "daily" },
-    { id: "lunch",  label: "Almuerzo · suplementos", icon: "restaurant",     color: "#23a56a", time: "13:30", days: "daily" },
-    { id: "water",  label: "Agua + electrolitos",    icon: "water_drop",     color: "#2bb7d9", time: "15:00", days: "daily" },
-    { id: "omega",  label: "Cena · Omega + Mag",     icon: "set_meal",       color: "#e0922a", time: "17:30", days: "daily" },
-    { id: "inject", label: "Inyección Mounjaro",     icon: "vaccines",       color: "#ef6b53", time: "09:00", days: "mon"   },
-    { id: "weekly", label: "Bonal D + Neurobión",    icon: "event",          color: "#1ea8a0", time: "13:30", days: "sun"   },
-    { id: "log",    label: "Registrar el día",       icon: "edit_note",      color: "#9aa0ac", time: "21:30", days: "daily" }
+    // 🔥 quema
+    { id: "despertar", label: "Despertar · agua, sol, creatina", icon: "wb_sunny",     color: "#F2A93B", time: "07:30", days: "daily", mode: "burn" },
+    { id: "tareg",     label: "Tareg D · 160/12.5",              icon: "cardiology",   color: "#dd6a56", time: "08:00", days: "daily", mode: "burn" },
+    // 🏗️ construcción
+    { id: "ventana",   label: "Abrir ventana · Ashwagandha",     icon: "restaurant",   color: "#5BC08A", time: "10:00", days: "daily", mode: "build" },
+    { id: "cafeina",   label: "Última cafeína",                  icon: "no_drinks",    color: "#dd6a56", time: "13:00", days: "daily", mode: "build" },
+    { id: "psyllium",  label: "Psyllium · antes de comer",       icon: "grass",        color: "#23a56a", time: "13:15", days: "daily", mode: "build" },
+    { id: "almuerzo",  label: "Almuerzo · Omega + Zinc",         icon: "lunch_dining", color: "#5BC08A", time: "13:30", days: "daily", mode: "build" },
+    { id: "caminata",  label: "Caminata post-almuerzo",          icon: "directions_walk", color: "#23a56a", time: "14:00", days: "daily", mode: "build" },
+    { id: "cena",      label: "Cena liviana · Omega 2ª",         icon: "dinner_dining", color: "#e0922a", time: "17:30", days: "daily", mode: "build" },
+    { id: "cierre",    label: "CIERRE · cocina cerrada",         icon: "dentistry",    color: "#F2A93B", time: "18:00", days: "daily", mode: "build" },
+    // 🌙 reparación
+    { id: "mag",       label: "Magnesio Bisglicinato",           icon: "bedtime",      color: "#6f7df6", time: "21:00", days: "daily", mode: "repair" },
+    { id: "log",       label: "Registrar el día",                icon: "edit_note",    color: "#9aa0ac", time: "21:30", days: "daily", mode: "repair" },
+    { id: "pantallas", label: "Pantallas fuera · luz cálida",    icon: "phonelink_off", color: "#7C83DB", time: "22:00", days: "daily", mode: "repair" },
+    { id: "cama",      label: "A la cama · dormido 23:00",       icon: "hotel",        color: "#5566F0", time: "22:30", days: "daily", mode: "repair" },
+    // semanales
+    { id: "inject",    label: "Inyección Mounjaro",              icon: "vaccines",     color: "#ef6b53", time: "09:00", days: "mon" },
+    { id: "mealprep",  label: "Meal prep + caja de emergencia",  icon: "event",        color: "#1ea8a0", time: "11:00", days: "sun" }
   ];
   var BODIES = {
-    weigh:  "Pésate al despertar y registra el peso 📉",
-    tareg:  "Tareg D en ayuno — antes de comer nada 💊",
-    lunch:  "Almuerzo: Ashwagandha, Omega 3, Creatina, Whey y Zinc (si toca) 💊 (Psyllium 15 min antes)",
-    water:  "Hora de agua + electrolitos 💧",
-    omega:  "Cena (con grasa): Omega 3 + Magnesio 🐟🌙",
-    inject: "Hoy es día de inyección · Mounjaro 5 mg 💉",
-    weekly: "Domingo: Bonal D (gotas, con comida) + Neurobión (inyección) 📅",
-    log:    "¿Ya registraste tu día en frody.body? ✍️"
+    despertar: "500 ml de agua, 5 min de sol en los ojos y creatina. Pésate en ayunas ☀️",
+    tareg:     "Tareg D 160/12.5 💊 — la presión controlada vale más que todo el stack",
+    ventana:   "Abre la ventana: proteína primero, porción moderada + Ashwagandha 450 mg 🏗️",
+    cafeina:   "Última cafeína del día ☕ — después de esta hora se la cobras al sueño profundo",
+    psyllium:  "Psyllium 5 g + vaso grande de agua, AHORA (15 min antes del plato) 🌾",
+    almuerzo:  "Almuerzo: 30–40 g proteína · orden verde → proteína → carbo. Omega 3 + Zinc (si toca) 🥗",
+    caminata:  "Caminata 10–15 min 🚶 — el músculo capta glucosa sin insulina. El hack más rentable",
+    cena:      "Cena liviana proteica + Omega 3 (2ª, con grasa) 🐟",
+    cierre:    "CIERRE: cocina cerrada. Lávate los dientes 🦷 — de aquí en adelante solo líquidos",
+    mag:       "Magnesio Bisglicinato 168 mg · 2 cáps 🌙 — GABA → sueño profundo → hormona de crecimiento",
+    log:       "¿Ya registraste tu día en frody.body? ✍️",
+    pantallas: "Pantallas fuera, luz cálida 📵 — la partida de las 22:30 se paga en hambre mañana",
+    cama:      "A la cama. Pieza 17–19 °C, dormido a las 23:00 🛏️",
+    inject:    "Hoy es día de inyección · Mounjaro 💉",
+    mealprep:  "Domingo: meal prep + caja de emergencia llena 🥡 — decidir con hambre es perder"
   };
+  // Migración v1 → v9.2: los recordatorios cambiaron de id/hora. Mapeamos los
+  // viejos a su equivalente para NO perder lo que el usuario ya tenía activado.
+  var CFG_VERSION = 2;
+  var ID_MIGRATION = { weigh: "despertar", lunch: "almuerzo", omega: "cena", weekly: "mealprep" };
   // mapeo de día → número/nombre (soporta cualquier día de la semana)
   var DAYNUM = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
   var DAYNAME = { sun: "Domingo", mon: "Lunes", tue: "Martes", wed: "Miércoles", thu: "Jueves", fri: "Viernes", sat: "Sábado" };
@@ -55,7 +79,7 @@
 
   // ---------- estado / persistencia ----------
   function defaults() {
-    return { master: false, items: DEFAULTS.map(function (d) { return { id: d.id, time: d.time, enabled: false }; }) };
+    return { v: CFG_VERSION, master: false, items: DEFAULTS.map(function (d) { return { id: d.id, time: d.time, enabled: false }; }) };
   }
   // horas default VIEJAS: si el usuario nunca las cambió (siguen igual al viejo
   // default), migramos al nuevo default en vez de dejar la hora obsoleta.
@@ -66,14 +90,30 @@
       if (raw) {
         var s = JSON.parse(raw);
         var byId = {};
-        (s.items || []).forEach(function (x) { byId[x.id] = x; });
+        (s.items || []).forEach(function (x) { if (x && x.id) byId[x.id] = x; });
+        var isV1 = (s.v || 0) < CFG_VERSION;
+        if (isV1) {
+          migrated = true;
+          // arrastra el 'enabled' del recordatorio viejo a su equivalente nuevo
+          Object.keys(ID_MIGRATION).forEach(function (old) {
+            var next = ID_MIGRATION[old];
+            if (byId[old] && !byId[next]) byId[next] = byId[old];
+          });
+        }
+        var on = !!s.master;
         return {
-          master: !!s.master,
+          v: CFG_VERSION,
+          master: on,
           items: DEFAULTS.map(function (d) {
-            var saved = byId[d.id] || {};
-            var t = saved.time;
+            var saved = byId[d.id];
+            // v1 → v9.2: el horario completo se reformuló, así que adoptamos las
+            // horas nuevas y solo conservamos QUÉ estaba encendido. Si tenía las
+            // notificaciones activas, los recordatorios nuevos del sistema entran
+            // encendidos: nunca lo dejamos sin avisos en silencio.
+            if (isV1) return { id: d.id, time: d.time, enabled: saved ? !!saved.enabled : on };
+            var t = (saved && saved.time) || "";
             if (!t || t === LEGACY_TIMES[d.id]) t = d.time; // migra las horas obsoletas
-            return { id: d.id, time: t, enabled: !!saved.enabled };
+            return { id: d.id, time: t, enabled: !!(saved && saved.enabled) };
           })
         };
       }
@@ -81,6 +121,10 @@
     return defaults();
   }
   function isTouched() { try { return localStorage.getItem(KEY) !== null; } catch (e) { return false; } }
+  // Se pone en true cuando load()/adoptRemote detectan una config de la era v1.
+  // Obliga a re-subir la config migrada: si el servidor se queda con los items
+  // viejos, seguiría mandando los recordatorios del horario antiguo.
+  var migrated = false;
   var cfg = load();
   var lastServerRun = 0; // heartbeat del cron (ms) para detectar si el servidor murió
   // El cron corre cada 15 min; avisamos recién tras ~3 corridas perdidas para no
@@ -207,7 +251,9 @@
   function pushAvail() { return !!(window.frodyPush && window.frodyPush.available && window.frodyPush.available()); }
   function cloudSync() {
     if (!window.frodyPush || !window.frodyPush.syncConfig) return;
+    migrated = false; // ya quedó subido el horario nuevo
     window.frodyPush.syncConfig({
+      v: CFG_VERSION,
       master: cfg.master,
       items: cfg.items.map(function (it) {
         var m = meta(it.id);
@@ -220,9 +266,21 @@
   function adoptRemote(remote) {
     cfg.master = !!remote.master;
     var byId = {};
-    (remote.items || []).forEach(function (x) { byId[x.id] = x; });
+    (remote.items || []).forEach(function (x) { if (x && x.id) byId[x.id] = x; });
+    var isV1 = (remote.v || 0) < CFG_VERSION;
+    if (isV1) {
+      Object.keys(ID_MIGRATION).forEach(function (old) {
+        var next = ID_MIGRATION[old];
+        if (byId[old] && !byId[next]) byId[next] = byId[old];
+      });
+      migrated = true; // el servidor todavía tiene el horario viejo: hay que resubir
+    }
+    cfg.v = CFG_VERSION;
     cfg.items.forEach(function (it) {
       var r = byId[it.id];
+      // config vieja → adoptamos el horario v9.2 completo y solo respetamos qué
+      // estaba encendido; lo que no existía antes hereda el master.
+      if (isV1) { it.enabled = r ? !!r.enabled : cfg.master; return; }
       if (r) { if (r.time) it.time = r.time; it.enabled = !!r.enabled; }
     });
     save(); render();
@@ -411,6 +469,9 @@
         if (remote && typeof remote.lastServerRun === "number") lastServerRun = remote.lastServerRun;
         if (!isTouched() && remote && remote.items) adoptRemote(remote);
         else if (isTouched()) cloudSync();
+        // si hubo migración v1 → v9.2, el servidor sigue con el horario viejo:
+        // hay que resubir sí o sí, o seguiría mandando los avisos antiguos.
+        if (migrated) cloudSync();
       } catch (e) { console.warn("reminders sync:", e); }
       if (cfg.master && pushAvail()) { try { await window.frodyPush.enable(); } catch (e) {} }
       render();

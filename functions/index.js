@@ -26,19 +26,27 @@ const APP_URL = "https://papifrody.web.app";
 const ALLOWED_EMAIL = "javier.neo@gmail.com";
 
 // respaldo por si un item llega sin 'body' (el cliente normalmente lo manda)
+// Sistema v9.2 — los 3 modos metabólicos del día.
 const BODIES = {
-  weigh: "Pésate al despertar y registra el peso 📉",
-  tareg: "Tareg D en ayuno — antes de comer nada 💊",
-  lunch: "Almuerzo: Ashwagandha, Omega 3, Creatina, Whey y Zinc (si toca) 💊 (Psyllium 15 min antes)",
-  water: "Hora de agua + electrolitos 💧",
-  omega: "Cena (con grasa): Omega 3 + Magnesio 🐟🌙",
-  inject: "Hoy es día de inyección · Mounjaro 5 mg 💉",
-  weekly: "Domingo: Bonal D (gotas, con comida) + Neurobión (inyección) 📅",
-  log: "¿Ya registraste tu día en frody.body? ✍️"
+  despertar: "500 ml de agua, 5 min de sol en los ojos y creatina. Pésate en ayunas ☀️",
+  tareg: "Tareg D 160/12.5 💊 — la presión controlada vale más que todo el stack",
+  ventana: "Abre la ventana: proteína primero, porción moderada + Ashwagandha 450 mg 🏗️",
+  cafeina: "Última cafeína del día ☕ — después de esta hora se la cobras al sueño profundo",
+  psyllium: "Psyllium 5 g + vaso grande de agua, AHORA (15 min antes del plato) 🌾",
+  almuerzo: "Almuerzo: 30–40 g proteína · orden verde → proteína → carbo. Omega 3 + Zinc (si toca) 🥗",
+  caminata: "Caminata 10–15 min 🚶 — el músculo capta glucosa sin insulina. El hack más rentable",
+  cena: "Cena liviana proteica + Omega 3 (2ª, con grasa) 🐟",
+  cierre: "CIERRE: cocina cerrada. Lávate los dientes 🦷 — de aquí en adelante solo líquidos",
+  mag: "Magnesio Bisglicinato 168 mg · 2 cáps 🌙 — GABA → sueño profundo → hormona de crecimiento",
+  log: "¿Ya registraste tu día en frody.body? ✍️",
+  pantallas: "Pantallas fuera, luz cálida 📵 — la partida de las 22:30 se paga en hambre mañana",
+  cama: "A la cama. Pieza 17–19 °C, dormido a las 23:00 🛏️",
+  inject: "Hoy es día de inyección · Mounjaro 💉",
+  mealprep: "Domingo: meal prep + caja de emergencia llena 🥡 — decidir con hambre es perder"
 };
 const DOW_CODE = { sun: "Sun", mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat" };
-// avisos importantes (salud): quedan fijos en pantalla hasta que los descartes
-const IMPORTANT = new Set(["inject", "tareg", "weekly"]);
+// avisos de fármaco: quedan fijos en pantalla hasta que los descartes
+const IMPORTANT = new Set(["tareg", "mag", "inject"]);
 
 // hora/fecha/día-de-semana locales en la zona horaria del usuario
 function localParts(date, tz) {

@@ -164,6 +164,7 @@ body.locked .savetag{display:none !important}
 
 .row-ic{
   width:30px;height:30px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  overflow:hidden; /* si la fuente de iconos no carga, el texto no rompe la fila */
   background:color-mix(in srgb,var(--c) 16%,transparent);color:var(--c);
 }
 .row-ic .ms{font-size:18px}
@@ -246,11 +247,15 @@ body.locked .savetag{display:none !important}
 .ag-dot{position:relative;margin-top:14px;width:11px;height:11px;border-radius:50%;background:var(--card);border:2px solid var(--c,var(--accent));flex-shrink:0;z-index:1}
 .ag-events{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;padding:7px 0 10px}
 .ag-ev{display:flex;align-items:center;gap:11px;background:var(--card);border:1px solid var(--cardbd);border-left:3px solid var(--c,var(--accent));border-radius:13px;box-shadow:var(--shadow-sm);padding:10px 12px;transition:opacity .15s}
-.ag-ic{width:30px;height:30px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--c,#5566F0) 16%,transparent);color:var(--c,#5566F0)}
+/* overflow:hidden = si la fuente de iconos no carga (offline / red lenta), el
+   nombre del ligature no se desborda y rompe la fila */
+.ag-ic{width:30px;height:30px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:color-mix(in srgb,var(--c,#5566F0) 16%,transparent);color:var(--c,#5566F0)}
 .ag-ic .ms{font-size:18px}
 .ag-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
 .ag-name{font-size:14px;font-weight:600;color:var(--ink)}
-.ag-meta{font-size:11px;color:var(--sec);font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* hasta 2 líneas: los detalles del sistema v9.2 no caben en una sola */
+.ag-meta{font-size:11px;color:var(--sec);font-family:var(--mono);line-height:1.4;overflow:hidden;
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
 .ag-ev.done{opacity:.55}
 .ag-ev.done .ag-name{text-decoration:line-through;text-decoration-color:var(--faint)}
 .ag-ev.overdue{border-left-color:var(--warn)}
@@ -377,6 +382,96 @@ body.locked .savetag{display:none !important}
 /* controles nativos (selector de hora, etc.) siguen el tema */
 html[data-theme="light"]{color-scheme:light}
 html[data-theme="dark"]{color-scheme:dark}
+
+/* =================== AGENDA v9.2: modos + porqué =================== */
+.ag-mode{margin:22px 0 10px;padding:13px 15px;border-radius:14px;background:var(--card);
+  border:1px solid var(--cardbd);border-top:3px solid var(--c,var(--accent));box-shadow:var(--shadow-sm)}
+.ag-row + .ag-mode{margin-top:26px}
+.ag-mode-tag{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--c,var(--accent));margin-bottom:4px}
+.ag-mode-name{font-size:19px;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
+.ag-mode-why{font-size:12.5px;color:var(--sec);margin-top:5px;line-height:1.55}
+
+.ag-item{display:flex;flex-direction:column}
+/* .ag-tx pasó a ser <button> (despliega el porqué): hay que resetear estilos */
+.ag-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;align-items:flex-start;
+  background:none;border:none;padding:0;font-family:var(--sans);text-align:left;cursor:pointer}
+.ag-name{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ag-badge{font-family:var(--mono);font-size:8.5px;letter-spacing:.05em;text-transform:uppercase;
+  background:var(--chip);border:1px solid var(--chipbd);color:var(--sec);padding:1px 5px;border-radius:5px;font-weight:600}
+.ag-badge-warn{background:color-mix(in srgb,var(--warn) 16%,transparent);border-color:transparent;color:var(--warn)}
+.ag-ev.paused{opacity:.6;border-left-style:dashed}
+.ag-ev.open{border-color:var(--c,var(--accent))}
+.ag-why{margin:-2px 0 10px 41px;padding:9px 12px;border-left:2px solid var(--c,var(--hair));
+  background:var(--chip);border-radius:0 10px 10px 0;font-size:12.5px;color:var(--sec);line-height:1.6}
+.ag-why i{font-style:normal;font-family:var(--mono);font-size:10.5px;color:var(--accent);font-weight:600}
+
+/* =================== PESTAÑA SISTEMA =================== */
+.ver{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--brand);vertical-align:super}
+.lead{font-size:14px;color:var(--sec);line-height:1.6;padding:0 4px 6px}
+
+.laws{display:grid;gap:10px}
+@media(min-width:640px){.laws{grid-template-columns:repeat(3,1fr)}}
+.law{background:var(--card);border:1px solid var(--cardbd);border-top:3px solid var(--brand);
+  border-radius:13px;padding:14px 16px;box-shadow:var(--shadow-sm)}
+.law-n{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--brand);margin-bottom:6px}
+.law b{font-size:14.5px;font-weight:800;display:block;letter-spacing:-.01em;line-height:1.3;color:var(--ink)}
+.law p{font-size:12.5px;color:var(--sec);margin-top:6px;line-height:1.55}
+
+.crit{background:var(--card);border:1px solid var(--warn);border-radius:13px;padding:16px 18px;margin-bottom:10px;box-shadow:var(--shadow-sm)}
+.crit-t{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--warn);margin-bottom:6px}
+.crit h3{font-size:16px;font-weight:800;margin-bottom:6px;letter-spacing:-.01em;color:var(--ink)}
+.crit p{font-size:13px;color:var(--sec);line-height:1.6}
+.crit b{color:var(--ink);font-weight:600}
+.crit-tel{display:inline-flex;align-items:center;gap:7px;margin-top:11px;font-family:var(--mono);font-size:13px;font-weight:600;
+  color:var(--accent);text-decoration:none;background:var(--chip);border:1px solid var(--chipbd);padding:8px 13px;border-radius:10px}
+.crit-tel .ms{font-size:17px}
+.crit-done{display:block;margin-top:11px;width:100%;padding:9px;border-radius:10px;cursor:pointer;
+  background:var(--chip);border:1px solid var(--chipbd);color:var(--sec);font-family:var(--sans);font-size:12.5px;font-weight:600}
+.crit.done{border-color:var(--cardbd);opacity:.55}
+.crit.done h3{text-decoration:line-through;text-decoration-color:var(--faint)}
+.crit.done .crit-done{color:var(--ok)}
+
+.labs{display:grid;gap:1px;background:var(--line);border-radius:14px;overflow:hidden;padding:0}
+@media(min-width:560px){.labs{grid-template-columns:1fr 1fr}}
+.lab{background:var(--card);padding:12px 15px;display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:baseline}
+.lab-k{font-size:13.5px;font-weight:600;color:var(--ink)}
+.lab-v{font-family:var(--mono);font-size:16px;font-weight:600;text-align:right}
+.lab-v.ok{color:var(--ok)} .lab-v.mid{color:var(--amber)} .lab-v.bad{color:var(--warn)}
+.lab-m{grid-column:1/-1;font-size:11px;color:var(--sec);line-height:1.45}
+
+.hacks{display:grid;gap:9px}
+.hack{background:var(--card);border:1px solid var(--cardbd);border-radius:12px;padding:13px 15px;display:flex;gap:12px;box-shadow:var(--shadow-sm)}
+.hack-n{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--brand);background:var(--chip);
+  border:1px solid var(--chipbd);width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.hack-t b{font-size:14px;font-weight:800;display:block;letter-spacing:-.01em;color:var(--ink)}
+.hack-t p{font-size:12.5px;color:var(--sec);margin-top:3px;line-height:1.55}
+.hack-t i{font-style:normal;font-family:var(--mono);font-size:10.5px;color:var(--accent);font-weight:600}
+.hack-t b:last-child{color:var(--ink)}
+
+.acid-why{border-left:3px solid var(--ok);padding:14px 17px;font-size:13px;color:var(--sec);line-height:1.65;margin-bottom:10px}
+.acid-why b{color:var(--ink);font-weight:600}
+.semaforo{display:grid;gap:10px}
+@media(min-width:640px){.semaforo{grid-template-columns:repeat(3,1fr);align-items:start}}
+.sem{background:var(--card);border:1px solid var(--cardbd);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow-sm)}
+.sem-k{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:9px;padding-bottom:7px;border-bottom:1px solid var(--line)}
+.sem.ok .sem-k{color:var(--ok)} .sem.mid .sem-k{color:var(--amber)} .sem.bad .sem-k{color:var(--warn)}
+.sem ul{list-style:none}
+.sem li{font-size:12.5px;color:var(--sec);line-height:1.55;margin-bottom:4px;padding-left:11px;position:relative}
+.sem li::before{content:"·";position:absolute;left:1px;color:var(--faint)}
+.sem li b{color:var(--ink);font-weight:600}
+
+.week{padding:4px 18px}
+.wrow{display:flex;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);align-items:baseline}
+.wrow:last-child{border-bottom:none}
+.wday{font-family:var(--mono);font-size:11.5px;color:var(--brand);min-width:46px;font-weight:600;flex-shrink:0}
+.wtxt{font-size:13.5px;color:var(--ink)}
+.wtxt small{color:var(--sec);font-size:11.5px;display:block;margin-top:2px;line-height:1.5}
+
+.closing{margin-top:26px;text-align:center;padding:26px 16px;border-top:1px solid var(--hair)}
+.closing p{font-size:17px;font-weight:700;letter-spacing:-.02em;line-height:1.3;color:var(--ink)}
+.eighty{margin-top:16px;font-family:var(--mono);font-size:11.5px;color:var(--sec);display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.eighty span{border:1px solid var(--chipbd);border-radius:18px;padding:5px 12px}
+.eighty .hot{border-color:var(--brand);color:var(--brand)}
 
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 

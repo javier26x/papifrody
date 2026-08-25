@@ -125,7 +125,7 @@
       </div>
 
       <!-- 6 pilares -->
-      <div class="grouplab">6 pilares</div>
+      <div class="grouplab">Pilares del día</div>
       <div class="card list">
         <div class="row">
           <span class="row-ic" style="--c:#ef6b53"><span class="ms">restaurant</span></span>
@@ -152,12 +152,12 @@
         </div>
         <div class="row">
           <span class="row-ic" style="--c:#e0922a"><span class="ms">sunny</span></span>
-          <div class="row-main"><span class="row-t">Sol al despertar</span><span class="row-s">en la bici · fija el circadiano</span></div>
+          <div class="row-main"><span class="row-t">Sol al despertar</span><span class="row-s">5 min · programa la melatonina de la noche</span></div>
           <button class="tg" data-toggle="sunAM" role="switch" aria-checked="false" aria-label="Sol al despertar"></button>
         </div>
         <div class="row">
           <span class="row-ic" style="--c:#3b82f6"><span class="ms">directions_bike</span></span>
-          <div class="row-main"><span class="row-t">Bici</span><span class="row-s">~24 km · zona 2</span></div>
+          <div class="row-main"><span class="row-t">Bici</span><span class="row-s">vuelve en septiembre · hasta ahí cuenta caminar</span></div>
           <button class="tg" data-toggle="bike" role="switch" aria-checked="false" aria-label="Bici"></button>
         </div>
         <div class="row">
@@ -215,9 +215,98 @@
     <!-- ============================ STACK ============================ -->
     <section class="panel" data-panel="stack" data-screen-label="Stack" hidden>
       <div class="ptitle">Stack</div>
-      <div class="grouplab">Agenda del día · marca lo que tomaste</div>
+      <div class="grouplab">El día en 3 modos · toca el nombre para ver el porqué</div>
       <div class="agenda" id="chips"></div>
       <div class="ministat" id="suppCount"></div>
+    </section>
+
+    <!-- ============================ SISTEMA ============================ -->
+    <section class="panel" data-panel="sistema" data-screen-label="Sistema" hidden>
+      <div class="ptitle">Sistema <span class="ver">v9.2</span></div>
+      <p class="lead">Nada está al azar. Cada suplemento, hack y horario está puesto donde su mecanismo rinde más. Cuando dudes de algo a las 3 semanas, la razón está acá.</p>
+
+      <div class="grouplab">Las 3 leyes</div>
+      <div class="laws">
+        <div class="law"><div class="law-n">LEY 1</div><b>Insulina baja = quema abierta</b><p>La insulina alta guarda grasa y frena su salida. Todo lo que la aplana — ayuno, low carb, psyllium, orden del plato, caminata post-comida — mantiene la puerta de la grasa abierta más horas al día.</p></div>
+        <div class="law"><div class="law-n">LEY 2</div><b>La saciedad se fabrica con hormonas, no con voluntad</b><p>Proteína, fibra, volumen y sueño disparan GLP-1 y PYY y regulan grelina/leptina. Es el reemplazo casero del Mounjaro — y no se paga mensual.</p></div>
+        <div class="law"><div class="law-n">LEY 3</div><b>El músculo es tu sumidero de glucosa</b><p>El 70–80% de la glucosa que comes la absorbe el músculo. Más músculo activo = mejor insulina sin fármaco. La fuerza no es estética: es metabólica.</p></div>
+      </div>
+
+      <div class="grouplab">⚠ Acciones críticas · esta semana</div>
+      <div class="crit" id="critVitD">
+        <div class="crit-t">crítico 1 · vitamina D</div>
+        <h3>La carga de Bonal D venció en junio</h3>
+        <p>Era 20 gotas × 3 semanas. Si la seguiste tomando los domingos, <b>suspende ya</b> — la D en megadosis se acumula. Si la cortaste a tiempo, corresponde retomar la <b>Swanson 5.000 UI</b> como mantención. Ambos caminos: <b>confirmar con la Dra. Arancibia</b> + medir vitamina D en el próximo examen. El Neurobión también terminó su ciclo.</p>
+        <button class="crit-done" data-crit="doneVitD" type="button">Marcar como resuelto</button>
+      </div>
+      <div class="crit" id="critControl">
+        <div class="crit-t">crítico 2 · control médico</div>
+        <h3>Exámenes de marzo — toca re-control</h3>
+        <p>5+ meses, con un mes de Mounjaro en el medio. Pendientes con ella: <b>ajuste del Tareg D · mantención de vitamina D · plan sin fármaco · la acidez</b>. Es una llamada de 2 minutos.</p>
+        <a class="crit-tel" href="tel:+56954213360"><span class="ms">call</span> +56 9 5421 3360</a>
+        <button class="crit-done" data-crit="doneControl" type="button">Marcar como resuelto</button>
+      </div>
+
+      <div class="grouplab">Marcadores · exámenes de marzo</div>
+      <div class="card labs">
+        <div class="lab"><span class="lab-k">HOMA</span><span class="lab-v bad">4.0</span><span class="lab-m">resistencia a la insulina · meta &lt;2.0</span></div>
+        <div class="lab"><span class="lab-k">Triglicéridos</span><span class="lab-v mid">158</span><span class="lab-m">meta &lt;150 · objetivo del Omega 3</span></div>
+        <div class="lab"><span class="lab-k">LDL</span><span class="lab-v mid">124</span><span class="lab-m">meta &lt;100 · el psyllium ayuda acá</span></div>
+        <div class="lab"><span class="lab-k">Vitamina D</span><span class="lab-v bad">23.5</span><span class="lab-m">meta 40–60 · pendiente con la doctora</span></div>
+        <div class="lab"><span class="lab-k">Testosterona</span><span class="lab-v bad">267</span><span class="lab-m">piso del rango · sube sola al bajar grasa</span></div>
+        <div class="lab"><span class="lab-k">Músculo</span><span class="lab-v ok">48 kg</span><span class="lab-m">esto es lo que hay que proteger en déficit</span></div>
+      </div>
+      <div class="ministat">Valores de marzo. Se actualizan con el próximo control — no son un diagnóstico.</div>
+
+      <div class="grouplab">Hacks fuera del horario</div>
+      <div class="hacks">
+        <div class="hack"><span class="hack-n">A</span><div class="hack-t"><b>Regla de los 10 minutos</b><p>Antojo fuera de plan → 10 min + vaso de agua antes de decidir. <i>Razón:</i> los antojos son olas dopaminérgicas, suben y bajan solos en minutos. No peleas el antojo: lo dejas pasar. Si a los 10 sigue, era hambre: comes sin culpa.</p></div></div>
+        <div class="hack"><span class="hack-n">B</span><div class="hack-t"><b>Caldo liviano antes del plato</b><p>Sopa de verduras o caldo de huesos como entrada. <i>Razón:</i> volumen caliente + agua estiran el estómago antes del plato fuerte — reduce la ingesta ~20% por pura mecánica de llenado. Ideal en invierno.</p></div></div>
+        <div class="hack"><span class="hack-n">C</span><div class="hack-t"><b>Vinagre de manzana pre-comida</b><p>1–2 cdas diluidas en agua. <i>Razón:</i> el ácido acético ralentiza el vaciamiento gástrico y mejora la captación de glucosa — pico más plano de esa comida. <b>⚠ Si te da acidez, fuera</b> — no es para tu estómago.</p></div></div>
+        <div class="hack"><span class="hack-n">D</span><div class="hack-t"><b>NEAT · el gasto invisible</b><p>Escaleras, caminar en llamadas, pararte cada hora. <i>Razón:</i> 200–400 kcal/día en sedentarios — más que una sesión de gimnasio, repartido sin esfuerzo percibido. Ahora que no entrenas, es tu motor de gasto #1.</p></div></div>
+        <div class="hack"><span class="hack-n">E</span><div class="hack-t"><b>Alcohol · si aplica, la regla</b><p>Máx 1–2, dentro de ventana, destilado &gt; cerveza. <i>Razón:</i> triple golpe — el cuerpo pausa la quema de grasa para metabolizar el alcohol primero, desinhibe el apetito y destruye el sueño profundo (la ventana de GH). Y gatilla acidez.</p></div></div>
+      </div>
+
+      <div class="grouplab">🔥 Anti-acidez · el semáforo</div>
+      <div class="card acid-why">A 130 kg la acidez es <b>mecánica</b>: presión abdominal empujando ácido hacia arriba. <b>Bajar de peso ES el tratamiento</b> — mejora clara con los primeros 5–10 kg. Tu horario ya te protege: última comida 17:30 + cama 22:30 = 5 h de separación, exactamente lo recomendado. Si es frecuente (2+/semana) o hay dolor al tragar → va a la lista de la doctora.</div>
+      <div class="semaforo">
+        <div class="sem ok"><div class="sem-k">✓ seguros</div><ul>
+          <li><b>Verduras:</b> zapallo italiano, porotos verdes, espinaca, lechuga, pepino, zanahoria cocida, espárragos, apio, champiñones, brócoli al vapor, betarraga</li>
+          <li><b>Proteínas:</b> pollo/pavo plancha u horno, pescado blanco, salmón al horno, huevo, tofu</li>
+          <li><b>Otros:</b> palta moderada, yogurt natural, almendras, quesillo</li>
+          <li><b>Líquidos:</b> agua, jengibre ⭐, manzanilla</li>
+        </ul></div>
+        <div class="sem mid"><div class="sem-k">~ prueba de a uno</div><ul>
+          <li><b>Café</b> → con comida, no en ayunas</li>
+          <li><b>Bebida cero</b> → gas + cafeína pueden gatillar</li>
+          <li><b>Chocolate 85%</b> → relaja el esfínter</li>
+          <li><b>Limón en agua</b> → si arde, agua sola o con pepino</li>
+          <li><b>Tomate, cebolla cocida</b> → porción chica y observa</li>
+        </ul></div>
+        <div class="sem bad"><div class="sem-k">✗ gatillos</div><ul>
+          <li>Ají, merkén, picantes</li>
+          <li>Cebolla cruda</li>
+          <li>Cítricos puros, salsa de tomate concentrada</li>
+          <li>Frituras y muy grasoso</li>
+          <li>Menta / hierbabuena</li>
+          <li>Alcohol · comidas gigantes de una</li>
+        </ul></div>
+      </div>
+
+      <div class="grouplab">La semana</div>
+      <div class="card week">
+        <div class="wrow"><span class="wday">DOM</span><span class="wtxt">Meal prep + caja de emergencia llena<small>Decidir con hambre es perder. El domingo decide por ti toda la semana.</small></span></div>
+        <div class="wrow"><span class="wday">LUN</span><span class="wtxt">Pesaje + cintura en ayunas → registrar<small>La tendencia es la señal; el dato suelto es ruido. Con 48 kg de músculo, la cintura vale más que la pesa.</small></span></div>
+        <div class="wrow"><span class="wday">L·M·V</span><span class="wtxt">Fuerza 20 min<small>Ley 3 — el músculo es tu sumidero de glucosa y tu metabolismo basal.</small></span></div>
+        <div class="wrow"><span class="wday">SÁB</span><span class="wtxt">Libre activo · si hay comida fuera, es hoy<small>Una válvula programada evita la explosión espontánea. Una comida, no un día.</small></span></div>
+        <div class="wrow"><span class="wday">SEPT</span><span class="wtxt">Vuelve la bici 🌸<small>Hito planificado, no culpa. El modo Quema de la mañana se potencia solo.</small></span></div>
+      </div>
+
+      <div class="closing">
+        <p>Esta semana: dormido a las 23:00 y ventana 10–18. El resto espera su turno — pero ahora sabes por qué existe cada pieza.</p>
+        <div class="eighty"><span class="hot">100% ideal</span><span>90% bien</span><span>nunca bajo 80%</span></div>
+      </div>
+      <div class="foot">Esto es tu plan, no indicación médica. Tareg D y Bonal D son de receta — confirma cualquier cambio con tu doctora.</div>
     </section>
 
     <!-- ============================ AJUSTES ============================ -->
@@ -276,6 +365,7 @@
     <button class="tab on" data-tab="hoy" role="tab" aria-selected="true"><span class="ms">today</span><span>Hoy</span></button>
     <button class="tab" data-tab="trend" role="tab" aria-selected="false"><span class="ms">monitoring</span><span>Tendencias</span></button>
     <button class="tab" data-tab="stack" role="tab" aria-selected="false"><span class="ms">medication</span><span>Stack</span></button>
+    <button class="tab" data-tab="sistema" role="tab" aria-selected="false"><span class="ms">menu_book</span><span>Sistema</span></button>
     <button class="tab" data-tab="ajustes" role="tab" aria-selected="false"><span class="ms">tune</span><span>Ajustes</span></button>
   </nav>
 
